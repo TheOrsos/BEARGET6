@@ -115,26 +115,51 @@ if ($fund['status'] === 'settling') {
 
             <?php if ($fund['status'] === 'settling'): ?>
                 <div class="bg-gray-800 rounded-2xl p-6">
-                    <h2 class="text-xl font-bold text-white mb-4">Pagamenti per il Saldaconto</h2>
+                    <h2 class="text-xl font-bold text-white mb-4">Azioni per il Saldaconto</h2>
                     <div class="space-y-3">
                         <?php if (empty($settlement_payments)): ?>
-                            <p class="text-gray-500 text-center py-4">Tutti i conti sono saldati o non ci sono pagamenti da effettuare.</p>
+                            <p class="text-gray-500 text-center py-4">Tutti i conti sono saldati o non ci sono azioni da effettuare.</p>
                         <?php else: foreach($settlement_payments as $payment): ?>
                         <div class="flex items-center justify-between p-3 rounded-lg bg-gray-700/50">
                             <div class="flex items-center gap-3">
-                                <span class="text-xl"><?php echo $payment['status'] === 'paid' ? '✅' : '⏳'; ?></span>
+                                <span class="text-xl">
+                                    <?php
+                                        // Different icon for withdrawal
+                                        if ($payment['from_user_id'] == $payment['to_user_id']) {
+                                            echo $payment['status'] === 'paid' ? '💰' : '📥';
+                                        } else {
+                                            echo $payment['status'] === 'paid' ? '✅' : '⏳';
+                                        }
+                                    ?>
+                                </span>
                                 <div>
                                     <p class="text-white">
-                                        <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
-                                        <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
-                                        <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
+                                        <?php if ($payment['from_user_id'] == $payment['to_user_id']): // This is a cash withdrawal ?>
+                                            <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span> deve prelevare
+                                            <span class="font-bold text-green-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> dal fondo.
+                                        <?php else: // This is a peer-to-peer payment ?>
+                                            <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
+                                            <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
+                                            <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
+                                        <?php endif; ?>
                                     </p>
                                 </div>
                             </div>
-                            <?php if($payment['status'] === 'pending' && ($payment['from_user_id'] == $user_id || $payment['to_user_id'] == $user_id)): ?>
+                            <?php
+                                $is_withdrawal = $payment['from_user_id'] == $payment['to_user_id'];
+                                $can_confirm = false;
+                                if ($is_withdrawal && $payment['to_user_id'] == $user_id) {
+                                    $can_confirm = true; // Only the recipient can confirm a withdrawal
+                                } elseif (!$is_withdrawal && ($payment['from_user_id'] == $user_id || $payment['to_user_id'] == $user_id)) {
+                                    $can_confirm = true; // Payer or payee can confirm a p2p payment
+                                }
+                            ?>
+                            <?php if($payment['status'] === 'pending' && $can_confirm): ?>
                             <form action="confirm_payment.php" method="POST" class="confirm-payment-form">
                                 <input type="hidden" name="payment_id" value="<?php echo $payment['id']; ?>">
-                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg text-sm">Conferma</button>
+                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg text-sm">
+                                    <?php echo $is_withdrawal ? 'Conferma Prelievo' : 'Conferma Pagamento'; ?>
+                                </button>
                             </form>
                             <?php endif; ?>
                         </div>
