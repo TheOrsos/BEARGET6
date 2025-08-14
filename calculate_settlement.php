@@ -10,7 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
     $conn->begin_transaction();
 
     try {
-        // --- Security and Status Check ---
+        // --- 1. Security and Status Check ---
         $fund = get_shared_fund_details($conn, $fund_id, $user_id);
         if (!$fund || $fund['creator_id'] != $user_id) {
             throw new Exception("Azione non autorizzata.");

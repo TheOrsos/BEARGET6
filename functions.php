@@ -1578,4 +1578,27 @@ function get_settlement_payments($conn, $fund_id) {
     $stmt->close();
     return $payments;
 }
+
+/**
+ * Calcola il contributo netto di ogni utente a un fondo.
+ * @param object $conn La connessione al database.
+ * @param int $fund_id L'ID del fondo.
+ * @return array Un array associativo [user_id => net_contribution].
+ */
+function get_net_contributions_by_user($conn, $fund_id) {
+    $contributions = [];
+    $sql = "SELECT user_id, SUM(amount) as net_contribution
+            FROM shared_fund_contributions
+            WHERE fund_id = ?
+            GROUP BY user_id";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $fund_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $contributions[$row['user_id']] = (float)$row['net_contribution'];
+    }
+    $stmt->close();
+    return $contributions;
+}
 ?>
