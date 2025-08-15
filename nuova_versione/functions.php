@@ -1601,4 +1601,44 @@ function get_net_contributions_by_user($conn, $fund_id) {
     $stmt->close();
     return $contributions;
 }
+
+function get_expenses_by_category_for_fund($conn, $fund_id) {
+    $data = [];
+    $sql = "SELECT c.name as category_name, SUM(ge.amount) as total_amount
+            FROM group_expenses ge
+            JOIN categories c ON ge.category_id = c.id
+            WHERE ge.fund_id = ?
+            GROUP BY ge.category_id
+            ORDER BY total_amount DESC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $fund_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while($row = $result->fetch_assoc()) {
+        $data[] = $row;
+    }
+    $stmt->close();
+    return $data;
+}
+
+function get_member_stats_for_fund($conn, $fund_id) {
+    $stats = [];
+    $sql = "SELECT
+                u.id as user_id,
+                u.username,
+                (SELECT COALESCE(SUM(amount), 0) FROM group_expenses WHERE fund_id = ? AND paid_by_user_id = u.id) as total_paid,
+                (SELECT COALESCE(SUM(amount), 0) FROM shared_fund_contributions WHERE fund_id = ? AND user_id = u.id) as total_contributed
+            FROM users u
+            JOIN shared_fund_members sfm ON u.id = sfm.user_id
+            WHERE sfm.fund_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("iii", $fund_id, $fund_id, $fund_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while($row = $result->fetch_assoc()) {
+        $stats[] = $row;
+    }
+    $stmt->close();
+    return $stats;
+}
 ?>
