@@ -24,7 +24,7 @@ $members = get_fund_members($conn, $fund_id);
 $accounts = get_user_accounts($conn, $user_id);
 $expense_categories = get_user_categories($conn, $user_id, 'expense');
 
-if ($fund['status'] === 'settling') {
+if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
     $settlement_payments = get_settlement_payments($conn, $fund_id);
     $all_payments_confirmed = true;
     if (empty($settlement_payments)) {
@@ -41,7 +41,7 @@ if ($fund['status'] === 'settling') {
     $group_expenses = get_group_expenses($conn, $fund_id);
     $balances = get_group_balances($conn, $fund_id);
     $contributions = get_fund_contributions($conn, $fund_id);
-    $fundCategory = get_category_by_name($conn, 'Fondi Comuni', $user_id);
+    $fundCategory = get_category_by_name_and_type($conn, 'Fondi Comuni', $user_id, 'expense');
 }
 ?>
 <!DOCTYPE html>
@@ -51,6 +51,7 @@ if ($fund['status'] === 'settling') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dettagli Fondo - Bearget</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="theme.php">
     <script>
       tailwind.config = {
@@ -83,11 +84,16 @@ if ($fund['status'] === 'settling') {
                     <p class="text-gray-400 mt-1">
                         <?php if($fund['status'] === 'active'): echo 'Gestisci le spese, i contributi e i membri del fondo.'; ?>
                         <?php elseif($fund['status'] === 'settling'): echo 'Questo fondo è in fase di chiusura. Conferma i pagamenti per finalizzare.'; ?>
+                        <?php elseif($fund['status'] === 'settling_auto'): echo 'Saldaconto automatico in corso. Seleziona i conti per procedere.'; ?>
                         <?php elseif($fund['status'] === 'archived'): echo 'Questo fondo è archiviato e può essere solo consultato.'; ?>
                         <?php endif; ?>
                     </p>
                 </div>
                 <div class="flex gap-2">
+                    <a href="fund_stats.php?id=<?php echo $fund_id; ?>" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        Statistiche
+                    </a>
                     <?php if($fund['status'] === 'active' && $is_creator): ?>
                         <button onclick="openModal('settle-up-modal')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -124,7 +130,6 @@ if ($fund['status'] === 'settling') {
                             <div class="flex items-center gap-3">
                                 <span class="text-xl">
                                     <?php
-                                        // Different icon for withdrawal
                                         if ($payment['from_user_id'] == $payment['to_user_id']) {
                                             echo $payment['status'] === 'paid' ? '💰' : '📥';
                                         } else {
@@ -134,10 +139,10 @@ if ($fund['status'] === 'settling') {
                                 </span>
                                 <div>
                                     <p class="text-white">
-                                        <?php if ($payment['from_user_id'] == $payment['to_user_id']): // This is a cash withdrawal ?>
+                                        <?php if ($payment['from_user_id'] == $payment['to_user_id']): ?>
                                             <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span> deve prelevare
                                             <span class="font-bold text-green-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> dal fondo.
-                                        <?php else: // This is a peer-to-peer payment ?>
+                                        <?php else: ?>
                                             <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
                                             <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
                                             <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
@@ -149,9 +154,9 @@ if ($fund['status'] === 'settling') {
                                 $is_withdrawal = $payment['from_user_id'] == $payment['to_user_id'];
                                 $can_confirm = false;
                                 if ($is_withdrawal && $payment['to_user_id'] == $user_id) {
-                                    $can_confirm = true; // Only the recipient can confirm a withdrawal
+                                    $can_confirm = true;
                                 } elseif (!$is_withdrawal && ($payment['from_user_id'] == $user_id || $payment['to_user_id'] == $user_id)) {
-                                    $can_confirm = true; // Payer or payee can confirm a p2p payment
+                                    $can_confirm = true;
                                 }
                             ?>
                             <?php if($payment['status'] === 'pending' && $can_confirm): ?>
@@ -170,67 +175,79 @@ if ($fund['status'] === 'settling') {
                 $p2p_payments = array_filter($settlement_payments, function($p) {
                     return $p['from_user_id'] != $p['to_user_id'];
                 });
+                $all_accounts_selected = true;
+                foreach($p2p_payments as $p) {
+                    if (empty($p['from_account_id']) || empty($p['to_account_id'])) {
+                        $all_accounts_selected = false;
+                        break;
+                    }
+                }
             ?>
                 <div class="bg-gray-800 rounded-2xl p-6">
                     <h2 class="text-xl font-bold text-white mb-2">Saldaconto Automatico</h2>
-                    <p class="text-gray-400 mb-6">Seleziona i conti per registrare automaticamente le transazioni di debito/credito.</p>
+                    <p class="text-gray-400 mb-6">Ogni utente deve selezionare il proprio conto per il trasferimento. Una volta che tutti avranno scelto, il creatore potrà finalizzare.</p>
 
-                    <form action="process_automatic_settlement.php" method="POST">
-                        <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
-                        <div class="space-y-4">
-                            <?php if(empty($p2p_payments)): ?>
-                                <p class="text-center text-gray-500 py-4">Nessun debito da saldare tra i membri.</p>
-                            <?php else:
-                                // Create a map of user_id to their accounts
-                                $user_accounts_map = [];
-                                foreach ($members as $member) {
-                                    $user_accounts_map[$member['id']] = get_user_accounts($conn, $member['id']);
-                                }
-                            ?>
-                                <?php foreach($p2p_payments as $payment): ?>
-                                    <div class="bg-gray-700/50 p-4 rounded-lg">
-                                        <p class="text-white text-center mb-3">
-                                            <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
-                                            <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
-                                            <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
-                                        </p>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <!-- From Account Selection -->
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['from_username']); ?> (Uscita)</label>
-                                                <?php if ($user_id == $payment['from_user_id']): ?>
-                                                    <select name="payments[<?php echo $payment['id']; ?>][from_account]" required class="w-full bg-gray-900 text-white rounded-lg px-3 py-2">
-                                                        <?php foreach($user_accounts_map[$payment['from_user_id']] as $account): ?>
-                                                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                <?php else: ?>
-                                                    <p class="text-gray-400 text-sm italic mt-2">In attesa che <?php echo htmlspecialchars($payment['from_username']); ?> scelga il conto.</p>
-                                                <?php endif; ?>
-                                            </div>
-                                            <!-- To Account Selection -->
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['to_username']); ?> (Entrata)</label>
-                                                <?php if ($user_id == $payment['to_user_id']): ?>
-                                                    <select name="payments[<?php echo $payment['id']; ?>][to_account]" required class="w-full bg-gray-900 text-white rounded-lg px-3 py-2">
-                                                        <?php foreach($user_accounts_map[$payment['to_user_id']] as $account): ?>
-                                                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                <?php else: ?>
-                                                    <p class="text-gray-400 text-sm italic mt-2">In attesa che <?php echo htmlspecialchars($payment['to_username']); ?> scelga il conto.</p>
-                                                <?php endif; ?>
-                                            </div>
+                    <div id="settlement-container" class="space-y-4">
+                        <?php if(empty($p2p_payments)): ?>
+                            <p class="text-center text-gray-500 py-4">Nessun debito da saldare tra i membri.</p>
+                        <?php else:
+                            $user_accounts_map = [];
+                            foreach ($members as $member) {
+                                $user_accounts_map[$member['id']] = get_user_accounts($conn, $member['id']);
+                            }
+                        ?>
+                            <?php foreach($p2p_payments as $payment): ?>
+                                <div class="bg-gray-700/50 p-4 rounded-lg">
+                                    <p class="text-white text-center mb-3">
+                                        <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
+                                        <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
+                                        <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
+                                    </p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['from_username']); ?> (Uscita)</label>
+                                            <?php if ($user_id == $payment['from_user_id'] && empty($payment['from_account_id'])): ?>
+                                                <select data-payment-id="<?php echo $payment['id']; ?>" data-type="from" class="account-select w-full bg-gray-900 text-white rounded-lg px-3 py-2">
+                                                    <option value="">Scegli un conto...</option>
+                                                    <?php foreach($user_accounts_map[$payment['from_user_id']] as $account): ?>
+                                                        <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            <?php else: ?>
+                                                <p class="text-gray-400 text-sm italic mt-2">
+                                                    <?php echo empty($payment['from_account_id']) ? 'In attesa di scelta...' : 'Conto selezionato.'; ?>
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['to_username']); ?> (Entrata)</label>
+                                            <?php if ($user_id == $payment['to_user_id'] && empty($payment['to_account_id'])): ?>
+                                                <select data-payment-id="<?php echo $payment['id']; ?>" data-type="to" class="account-select w-full bg-gray-900 text-white rounded-lg px-3 py-2">
+                                                    <option value="">Scegli un conto...</option>
+                                                    <?php foreach($user_accounts_map[$payment['to_user_id']] as $account): ?>
+                                                        <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            <?php else: ?>
+                                                <p class="text-gray-400 text-sm italic mt-2">
+                                                    <?php echo empty($payment['to_account_id']) ? 'In attesa di scelta...' : 'Conto selezionato.'; ?>
+                                                </p>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
 
-                        <div class="mt-6 text-right">
-                             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg">Conferma e Crea Transazioni</button>
-                        </div>
-                    </form>
+                    <?php if ($is_creator && $all_accounts_selected && !empty($p2p_payments)): ?>
+                    <div class="mt-6 text-right">
+                        <form action="process_automatic_settlement.php" method="POST">
+                            <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg">Processa e Archivia Fondo</button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
                 </div>
             <?php else: // active or archived ?>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -379,7 +396,7 @@ if ($fund['status'] === 'settling') {
         <div class="fixed inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop" onclick="closeModal('add-expense-modal')"></div>
         <div class="bg-gray-800 rounded-2xl w-full max-w-lg p-6 transform scale-95 opacity-0 modal-content overflow-y-auto max-h-full">
             <h2 class="text-2xl font-bold text-white mb-6">Aggiungi Nuova Spesa</h2>
-            <form action="add_expense.php" method="POST" class="space-y-4">
+            <form id="add-expense-form" action="add_expense.php" method="POST" class="space-y-4">
                 <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
 
                 <div>
@@ -390,7 +407,7 @@ if ($fund['status'] === 'settling') {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Importo Totale (€)</label>
-                        <input type="number" step="0.01" name="amount" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <input type="number" step="0.01" name="amount" id="expense-amount" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Data Spesa</label>
@@ -399,66 +416,46 @@ if ($fund['status'] === 'settling') {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Categoria</label>
-                    <select name="category_id" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
-                        <option value="">Nessuna categoria</option>
-                        <?php foreach($expense_categories as $category): ?>
-                            <option value="<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Pagato da</label>
+                    <select name="paid_by_user_id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <?php foreach($members as $member): ?>
+                            <option value="<?php echo $member['id']; ?>" <?php echo ($member['id'] == $user_id) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($member['username']); ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Nota (opzionale)</label>
-                    <textarea name="note_content" rows="2" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2" placeholder="Aggiungi dettagli..."></textarea>
-                </div>
-
-                <div class="bg-gray-900 p-3 rounded-lg">
-                    <div class="flex items-center">
-                        <input id="pay_from_fund_checkbox" type="checkbox" name="pay_from_fund" value="1" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500">
-                        <label for="pay_from_fund_checkbox" class="ml-2 block text-sm text-white">
-                            Paga usando il saldo del fondo comune
-                        </label>
-                    </div>
-                </div>
-
-                <div id="personal_payment_details">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Pagato da</label>
-                        <select name="paid_by_user_id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
-                            <?php foreach($members as $member): ?>
-                                <option value="<?php echo $member['id']; ?>" <?php echo ($member['id'] == $user_id) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($member['username']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Prelevato dal conto personale</label>
-                        <select name="account_id" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
-                            <?php foreach($accounts as $account): ?>
-                                <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Conto Personale</label>
+                    <select name="account_id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <?php foreach($accounts as $account): ?>
+                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>
                     <h3 class="text-lg font-medium text-white mb-2 mt-4">Divisione Spesa</h3>
-                    <p class="text-sm text-gray-400 mb-3">Seleziona i membri che partecipano a questa spesa. Verrà divisa equamente.</p>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        <?php foreach($members as $member): ?>
-                            <label class="flex items-center bg-gray-700 p-2 rounded-lg">
-                                <input type="checkbox" name="split_with_users[]" value="<?php echo $member['id']; ?>" checked class="form-checkbox h-5 w-5 bg-gray-900 border-gray-600 text-primary-600 focus:ring-primary-500">
-                                <span class="ml-2 text-white"><?php echo htmlspecialchars($member['username']); ?></span>
-                            </label>
-                        <?php endforeach; ?>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Metodo di divisione</label>
+                        <select name="split_method" id="split-method-select" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                            <option value="equal">Parti Uguali</option>
+                            <option value="fixed">Importo Fisso</option>
+                            <option value="percentage">Percentuale</option>
+                        </select>
                     </div>
                 </div>
 
+                <div id="split-container">
+                    <!-- Container for dynamic split inputs -->
+                </div>
+                <div id="split-feedback" class="text-sm text-red-400 h-4"></div>
+
+
                 <div class="pt-4 flex justify-end space-x-4">
                     <button type="button" onclick="closeModal('add-expense-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-5 rounded-lg">Annulla</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg">Aggiungi Spesa</button>
+                    <button type="submit" id="add-expense-submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg">Aggiungi Spesa</button>
                 </div>
             </form>
         </div>
@@ -561,28 +558,132 @@ if ($fund['status'] === 'settling') {
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const payFromFundCheckbox = document.getElementById('pay_from_fund_checkbox');
-            const personalPaymentDetails = document.getElementById('personal_payment_details');
+            const members = <?php echo json_encode($members); ?>;
+            const splitMethodSelect = document.getElementById('split-method-select');
+            const splitContainer = document.getElementById('split-container');
+            const expenseAmountInput = document.getElementById('expense-amount');
+            const feedbackDiv = document.getElementById('split-feedback');
+            const submitBtn = document.getElementById('add-expense-submit-btn');
 
-            if (payFromFundCheckbox) {
-                payFromFundCheckbox.addEventListener('change', function() {
-                    personalPaymentDetails.style.display = this.checked ? 'none' : 'block';
-                    const selects = personalPaymentDetails.querySelectorAll('select');
-                    selects.forEach(select => {
-                        if (this.checked) {
-                            select.removeAttribute('required');
-                        } else {
-                            select.setAttribute('required', 'required');
-                        }
-                    });
+            function renderSplitInputs() {
+                const method = splitMethodSelect.value;
+                let html = '';
+
+                switch(method) {
+                    case 'equal':
+                        html = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2">`;
+                        members.forEach(member => {
+                            html += `<label class="flex items-center bg-gray-700 p-2 rounded-lg">
+                                <input type="checkbox" name="split_with_users[]" value="${member.id}" checked class="form-checkbox h-5 w-5 bg-gray-900 border-gray-600 text-primary-600 focus:ring-primary-500">
+                                <span class="ml-2 text-white">${escapeHTML(member.username)}</span>
+                            </label>`;
+                        });
+                        html += `</div>`;
+                        break;
+
+                    case 'fixed':
+                    case 'percentage':
+                        const unit = method === 'fixed' ? '€' : '%';
+                        html = `<div class="space-y-2">`;
+                        members.forEach(member => {
+                            html += `<div class="flex items-center justify-between">
+                                <label class="text-white">${escapeHTML(member.username)}</label>
+                                <div class="flex items-center w-1/2">
+                                    <input type="number" step="0.01" name="${method}[${member.id}]" class="split-input w-full bg-gray-900 text-white rounded-lg px-3 py-1" placeholder="0.00" data-method="${method}">
+                                    <span class="ml-2 text-gray-400">${unit}</span>
+                                </div>
+                            </div>`;
+                        });
+                        html += `</div>`;
+                        break;
+                }
+                splitContainer.innerHTML = html;
+            }
+
+            function validateSplits() {
+                const method = splitMethodSelect.value;
+                const totalAmount = parseFloat(expenseAmountInput.value) || 0;
+                let currentTotal = 0;
+
+                document.querySelectorAll('.split-input').forEach(input => {
+                    currentTotal += parseFloat(input.value) || 0;
                 });
 
-                // Initial state check
-                if (payFromFundCheckbox.checked) {
-                    personalPaymentDetails.style.display = 'none';
-                    const selects = personalPaymentDetails.querySelectorAll('select');
-                    selects.forEach(select => select.removeAttribute('required'));
+                feedbackDiv.textContent = '';
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                if (totalAmount <= 0) return;
+
+                if (method === 'fixed') {
+                    feedbackDiv.textContent = `Totale: €${currentTotal.toFixed(2)} / €${totalAmount.toFixed(2)}`;
+                    if (Math.abs(currentTotal - totalAmount) > 0.01) {
+                        feedbackDiv.classList.add('text-red-400');
+                        feedbackDiv.classList.remove('text-green-400');
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        feedbackDiv.classList.remove('text-red-400');
+                        feedbackDiv.classList.add('text-green-400');
+                    }
+                } else if (method === 'percentage') {
+                    feedbackDiv.textContent = `Totale: ${currentTotal.toFixed(2)}% / 100%`;
+                    if (Math.abs(currentTotal - 100) > 0.1) {
+                        feedbackDiv.classList.add('text-red-400');
+                        feedbackDiv.classList.remove('text-green-400');
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        feedbackDiv.classList.remove('text-red-400');
+                        feedbackDiv.classList.add('text-green-400');
+                    }
                 }
+            }
+
+            splitMethodSelect.addEventListener('change', renderSplitInputs);
+            expenseAmountInput.addEventListener('input', validateSplits);
+            splitContainer.addEventListener('input', validateSplits);
+
+            // Initial render
+            renderSplitInputs();
+        });
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // AJAX for saving account choice
+        document.getElementById('settlement-container')?.addEventListener('change', function(e) {
+            if (e.target.classList.contains('account-select')) {
+                const select = e.target;
+                const paymentId = select.dataset.paymentId;
+                const accountId = select.value;
+                const type = select.dataset.type;
+
+                const formData = new FormData();
+                formData.append('payment_id', paymentId);
+                formData.append('account_id', accountId);
+                formData.append('type', type);
+
+                fetch('save_account_choice.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Visually confirm selection
+                        select.disabled = true;
+                        const parent = select.parentElement;
+                        parent.innerHTML = `<p class="text-green-400 text-sm italic mt-2">Conto selezionato.</p>`;
+                        // Optionally, check if all accounts are now selected and show the final button
+                    } else {
+                        alert('Errore: ' + data.message);
+                    }
+                })
+                .catch(err => alert('Errore di rete.'));
             }
         });
     </script>
