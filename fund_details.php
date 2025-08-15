@@ -166,6 +166,72 @@ if ($fund['status'] === 'settling') {
                         <?php endforeach; endif; ?>
                     </div>
                 </div>
+            <?php elseif ($fund['status'] === 'settling_auto'):
+                $p2p_payments = array_filter($settlement_payments, function($p) {
+                    return $p['from_user_id'] != $p['to_user_id'];
+                });
+            ?>
+                <div class="bg-gray-800 rounded-2xl p-6">
+                    <h2 class="text-xl font-bold text-white mb-2">Saldaconto Automatico</h2>
+                    <p class="text-gray-400 mb-6">Seleziona i conti per registrare automaticamente le transazioni di debito/credito.</p>
+
+                    <form action="process_automatic_settlement.php" method="POST">
+                        <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
+                        <div class="space-y-4">
+                            <?php if(empty($p2p_payments)): ?>
+                                <p class="text-center text-gray-500 py-4">Nessun debito da saldare tra i membri.</p>
+                            <?php else:
+                                // Create a map of user_id to their accounts
+                                $user_accounts_map = [];
+                                foreach ($members as $member) {
+                                    $user_accounts_map[$member['id']] = get_user_accounts($conn, $member['id']);
+                                }
+                            ?>
+                                <?php foreach($p2p_payments as $payment): ?>
+                                    <div class="bg-gray-700/50 p-4 rounded-lg">
+                                        <p class="text-white text-center mb-3">
+                                            <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
+                                            <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
+                                            <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
+                                        </p>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <!-- From Account Selection -->
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['from_username']); ?> (Uscita)</label>
+                                                <?php if ($user_id == $payment['from_user_id']): ?>
+                                                    <select name="payments[<?php echo $payment['id']; ?>][from_account]" required class="w-full bg-gray-900 text-white rounded-lg px-3 py-2">
+                                                        <?php foreach($user_accounts_map[$payment['from_user_id']] as $account): ?>
+                                                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                <?php else: ?>
+                                                    <p class="text-gray-400 text-sm italic mt-2">In attesa che <?php echo htmlspecialchars($payment['from_username']); ?> scelga il conto.</p>
+                                                <?php endif; ?>
+                                            </div>
+                                            <!-- To Account Selection -->
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['to_username']); ?> (Entrata)</label>
+                                                <?php if ($user_id == $payment['to_user_id']): ?>
+                                                    <select name="payments[<?php echo $payment['id']; ?>][to_account]" required class="w-full bg-gray-900 text-white rounded-lg px-3 py-2">
+                                                        <?php foreach($user_accounts_map[$payment['to_user_id']] as $account): ?>
+                                                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                <?php else: ?>
+                                                    <p class="text-gray-400 text-sm italic mt-2">In attesa che <?php echo htmlspecialchars($payment['to_username']); ?> scelga il conto.</p>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="mt-6 text-right">
+                             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg">Conferma e Crea Transazioni</button>
+                        </div>
+                    </form>
+                </div>
             <?php else: // active or archived ?>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <!-- Colonna Principale -->
@@ -435,13 +501,19 @@ if ($fund['status'] === 'settling') {
              <div class="bg-gray-800 rounded-lg p-6 z-10 max-w-md text-center shadow-lg">
                 <h2 class="text-xl font-bold mb-4 text-white">Chiudere il Conto?</h2>
                 <p class="text-gray-400">Questa azione calcolerà i pagamenti finali e metterà il fondo in modalità "chiusura". Non potrai più aggiungere nuove spese o contributi. Sei sicuro?</p>
-                <div class="mt-6 flex justify-center gap-4">
-                    <button type="button" onclick="closeModal('settle-up-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-5 rounded-lg">Annulla</button>
-                    <form action="calculate_settlement.php" method="POST">
+                <form action="calculate_settlement.php" method="POST">
+                    <div class="mt-4 text-left">
+                        <label class="flex items-center text-gray-300">
+                            <input type="checkbox" name="auto_settle" value="1" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500">
+                            <span class="ml-2">Salda automaticamente i debiti creando le transazioni</span>
+                        </label>
+                    </div>
+                    <div class="mt-6 flex justify-center gap-4">
+                        <button type="button" onclick="closeModal('settle-up-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-5 rounded-lg">Annulla</button>
                         <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
                         <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg">Sì, chiudi conto</button>
-                    </form>
-                </div>
+                    </div>
+                </form>
              </div>
         </div>
     <?php endif; ?>
