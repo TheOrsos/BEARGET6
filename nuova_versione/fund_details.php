@@ -51,6 +51,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dettagli Fondo - Bearget</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="theme.php">
     <script>
       tailwind.config = {
@@ -89,6 +90,10 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                     </p>
                 </div>
                 <div class="flex gap-2">
+                    <a href="fund_stats.php?id=<?php echo $fund_id; ?>" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        Statistiche
+                    </a>
                     <?php if($fund['status'] === 'active' && $is_creator): ?>
                         <button onclick="openModal('settle-up-modal')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -110,10 +115,6 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             Contributo
                         </button>
-                        <a href="fund_stats.php?id=<?php echo $fund_id; ?>" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                            Statistiche
-                        </a>
                     <?php endif; ?>
                 </div>
             </header>
@@ -380,7 +381,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
         <div class="fixed inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop" onclick="closeModal('add-expense-modal')"></div>
         <div class="bg-gray-800 rounded-2xl w-full max-w-lg p-6 transform scale-95 opacity-0 modal-content overflow-y-auto max-h-full">
             <h2 class="text-2xl font-bold text-white mb-6">Aggiungi Nuova Spesa</h2>
-            <form action="add_expense.php" method="POST" class="space-y-4">
+            <form id="add-expense-form" action="add_expense.php" method="POST" class="space-y-4">
                 <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
 
                 <div>
@@ -391,7 +392,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Importo Totale (€)</label>
-                        <input type="number" step="0.01" name="amount" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <input type="number" step="0.01" name="amount" id="expense-amount" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Data Spesa</label>
@@ -400,66 +401,46 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Categoria</label>
-                    <select name="category_id" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
-                        <option value="">Nessuna categoria</option>
-                        <?php foreach($expense_categories as $category): ?>
-                            <option value="<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Pagato da</label>
+                    <select name="paid_by_user_id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <?php foreach($members as $member): ?>
+                            <option value="<?php echo $member['id']; ?>" <?php echo ($member['id'] == $user_id) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($member['username']); ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1">Nota (opzionale)</label>
-                    <textarea name="note_content" rows="2" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2" placeholder="Aggiungi dettagli..."></textarea>
-                </div>
-
-                <div class="bg-gray-900 p-3 rounded-lg">
-                    <div class="flex items-center">
-                        <input id="pay_from_fund_checkbox" type="checkbox" name="pay_from_fund" value="1" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-primary-600 focus:ring-primary-500">
-                        <label for="pay_from_fund_checkbox" class="ml-2 block text-sm text-white">
-                            Paga usando il saldo del fondo comune
-                        </label>
-                    </div>
-                </div>
-
-                <div id="personal_payment_details">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Pagato da</label>
-                        <select name="paid_by_user_id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
-                            <?php foreach($members as $member): ?>
-                                <option value="<?php echo $member['id']; ?>" <?php echo ($member['id'] == $user_id) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($member['username']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Prelevato dal conto personale</label>
-                        <select name="account_id" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
-                            <?php foreach($accounts as $account): ?>
-                                <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Conto Personale</label>
+                    <select name="account_id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <?php foreach($accounts as $account): ?>
+                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>
                     <h3 class="text-lg font-medium text-white mb-2 mt-4">Divisione Spesa</h3>
-                    <p class="text-sm text-gray-400 mb-3">Seleziona i membri che partecipano a questa spesa. Verrà divisa equamente.</p>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        <?php foreach($members as $member): ?>
-                            <label class="flex items-center bg-gray-700 p-2 rounded-lg">
-                                <input type="checkbox" name="split_with_users[]" value="<?php echo $member['id']; ?>" checked class="form-checkbox h-5 w-5 bg-gray-900 border-gray-600 text-primary-600 focus:ring-primary-500">
-                                <span class="ml-2 text-white"><?php echo htmlspecialchars($member['username']); ?></span>
-                            </label>
-                        <?php endforeach; ?>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Metodo di divisione</label>
+                        <select name="split_method" id="split-method-select" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                            <option value="equal">Parti Uguali</option>
+                            <option value="fixed">Importo Fisso</option>
+                            <option value="percentage">Percentuale</option>
+                        </select>
                     </div>
                 </div>
 
+                <div id="split-container">
+                    <!-- Container for dynamic split inputs -->
+                </div>
+                <div id="split-feedback" class="text-sm text-red-400 h-4"></div>
+
+
                 <div class="pt-4 flex justify-end space-x-4">
                     <button type="button" onclick="closeModal('add-expense-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-5 rounded-lg">Annulla</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg">Aggiungi Spesa</button>
+                    <button type="submit" id="add-expense-submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg">Aggiungi Spesa</button>
                 </div>
             </form>
         </div>
@@ -562,30 +543,102 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const payFromFundCheckbox = document.getElementById('pay_from_fund_checkbox');
-            const personalPaymentDetails = document.getElementById('personal_payment_details');
+            const members = <?php echo json_encode($members); ?>;
+            const splitMethodSelect = document.getElementById('split-method-select');
+            const splitContainer = document.getElementById('split-container');
+            const expenseAmountInput = document.getElementById('expense-amount');
+            const feedbackDiv = document.getElementById('split-feedback');
+            const submitBtn = document.getElementById('add-expense-submit-btn');
 
-            if (payFromFundCheckbox) {
-                payFromFundCheckbox.addEventListener('change', function() {
-                    personalPaymentDetails.style.display = this.checked ? 'none' : 'block';
-                    const selects = personalPaymentDetails.querySelectorAll('select');
-                    selects.forEach(select => {
-                        if (this.checked) {
-                            select.removeAttribute('required');
-                        } else {
-                            select.setAttribute('required', 'required');
-                        }
-                    });
+            function renderSplitInputs() {
+                const method = splitMethodSelect.value;
+                let html = '';
+
+                switch(method) {
+                    case 'equal':
+                        html = `<div class="grid grid-cols-2 md:grid-cols-3 gap-2">`;
+                        members.forEach(member => {
+                            html += `<label class="flex items-center bg-gray-700 p-2 rounded-lg">
+                                <input type="checkbox" name="split_with_users[]" value="${member.id}" checked class="form-checkbox h-5 w-5 bg-gray-900 border-gray-600 text-primary-600 focus:ring-primary-500">
+                                <span class="ml-2 text-white">${escapeHTML(member.username)}</span>
+                            </label>`;
+                        });
+                        html += `</div>`;
+                        break;
+
+                    case 'fixed':
+                    case 'percentage':
+                        const unit = method === 'fixed' ? '€' : '%';
+                        html = `<div class="space-y-2">`;
+                        members.forEach(member => {
+                            html += `<div class="flex items-center justify-between">
+                                <label class="text-white">${escapeHTML(member.username)}</label>
+                                <div class="flex items-center w-1/2">
+                                    <input type="number" step="0.01" name="${method}[${member.id}]" class="split-input w-full bg-gray-900 text-white rounded-lg px-3 py-1" placeholder="0.00" data-method="${method}">
+                                    <span class="ml-2 text-gray-400">${unit}</span>
+                                </div>
+                            </div>`;
+                        });
+                        html += `</div>`;
+                        break;
+                }
+                splitContainer.innerHTML = html;
+            }
+
+            function validateSplits() {
+                const method = splitMethodSelect.value;
+                const totalAmount = parseFloat(expenseAmountInput.value) || 0;
+                let currentTotal = 0;
+
+                document.querySelectorAll('.split-input').forEach(input => {
+                    currentTotal += parseFloat(input.value) || 0;
                 });
 
-                // Initial state check
-                if (payFromFundCheckbox.checked) {
-                    personalPaymentDetails.style.display = 'none';
-                    const selects = personalPaymentDetails.querySelectorAll('select');
-                    selects.forEach(select => select.removeAttribute('required'));
+                feedbackDiv.textContent = '';
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                if (totalAmount <= 0) return;
+
+                if (method === 'fixed') {
+                    feedbackDiv.textContent = `Totale: €${currentTotal.toFixed(2)} / €${totalAmount.toFixed(2)}`;
+                    if (Math.abs(currentTotal - totalAmount) > 0.01) {
+                        feedbackDiv.classList.add('text-red-400');
+                        feedbackDiv.classList.remove('text-green-400');
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        feedbackDiv.classList.remove('text-red-400');
+                        feedbackDiv.classList.add('text-green-400');
+                    }
+                } else if (method === 'percentage') {
+                    feedbackDiv.textContent = `Totale: ${currentTotal.toFixed(2)}% / 100%`;
+                    if (Math.abs(currentTotal - 100) > 0.1) {
+                        feedbackDiv.classList.add('text-red-400');
+                        feedbackDiv.classList.remove('text-green-400');
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        feedbackDiv.classList.remove('text-red-400');
+                        feedbackDiv.classList.add('text-green-400');
+                    }
                 }
             }
+
+            splitMethodSelect.addEventListener('change', renderSplitInputs);
+            expenseAmountInput.addEventListener('input', validateSplits);
+            splitContainer.addEventListener('input', validateSplits);
+
+            // Initial render
+            renderSplitInputs();
         });
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
     </script>
 </body>
 </html>
