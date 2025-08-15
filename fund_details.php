@@ -268,7 +268,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                         </div>
 
                         <!-- Expense List -->
-                         <div class="bg-gray-800 rounded-2xl p-6">
+                        <div id="expenses-container" class="bg-gray-800 rounded-2xl p-6">
                             <h2 class="text-xl font-bold text-white mb-4">Spese del Gruppo</h2>
                             <div class="space-y-2">
                                 <?php if(empty($group_expenses)): ?>
@@ -302,7 +302,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                             </div>
                         </div>
 
-                        <div class="bg-gray-800 rounded-2xl p-6">
+                        <div id="contributions-container" class="bg-gray-800 rounded-2xl p-6">
                             <h2 class="text-xl font-bold text-white mb-4">Storico Contributi</h2>
                             <div class="space-y-2">
                                 <?php if(empty($contributions)): ?>
@@ -336,7 +336,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                         </div>
 
                         <!-- Balances -->
-                        <div class="bg-gray-800 rounded-2xl p-6">
+                        <div id="balances-container" class="bg-gray-800 rounded-2xl p-6">
                             <h2 class="text-xl font-bold text-white mb-4">Bilanci</h2>
                             <?php
                                 $users_who_owe = array_filter($balances, function($b) { return $b['balance'] < 0; });
@@ -686,6 +686,34 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                 .catch(err => alert('Errore di rete.'));
             }
         });
+
+        // SSE for real-time updates
+        if (!!window.EventSource) {
+            const fundId = <?php echo $fund_id; ?>;
+            const source = new EventSource(`fund_events.php?fund_id=${fundId}`);
+
+            source.addEventListener('update', function(event) {
+                console.log("Update received, fetching new data...");
+                fetch(`get_fund_data.php?id=${fundId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('expenses-container').innerHTML = data.expenses_html;
+                        document.getElementById('contributions-container').innerHTML = data.contributions_html;
+                        document.getElementById('balances-container').innerHTML = data.balances_html;
+                        // Note: The summary is not updated as it's in a different part of the layout.
+                        // This can be added if needed.
+                    })
+                    .catch(error => console.error('Error fetching new data:', error));
+            });
+
+            source.addEventListener('error', function(event) {
+                if (event.target.readyState === EventSource.CLOSED) {
+                    console.log('SSE connection closed.');
+                } else {
+                    console.error('SSE error:', event);
+                }
+            });
+        }
     </script>
 </body>
 </html>
