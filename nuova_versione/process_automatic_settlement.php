@@ -7,16 +7,15 @@ require_once 'db_connect.php';
 require_once 'functions.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
-    die("Sono arrivato qui 1: Script avviato");
-
     $fund_id = $_POST['fund_id'];
     $user_id = $_SESSION['id'];
     $payments_data = $_POST['payments'] ?? [];
 
     $conn->begin_transaction();
 
+    die("Sono arrivato qui 1: Transazione DB avviata");
+
     try {
-        die("Sono arrivato qui 2: Dentro il blocco try");
         // --- 1. Security and Fund Status Check ---
         $fund = get_shared_fund_details($conn, $fund_id, $user_id);
         if (!$fund) {
@@ -26,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
             throw new Exception("Questo fondo non è in modalità di saldaconto automatico.");
         }
 
-        die("Sono arrivato qui 3: Controlli di sicurezza passati");
+        die("Sono arrivato qui 2: Controlli di sicurezza passati");
 
         // --- 2. Get or Create Categories for Settlement Transactions ---
         $category_name = "Regolamento Fondo";
@@ -55,7 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
             $income_category_id = $income_category['id'];
         }
 
-        die("Sono arrivato qui 4: Categorie gestite");
+        die("Sono arrivato qui 3: Categorie gestite");
 
         // --- 3. Process each payment ---
         $settlement_payments = get_settlement_payments($conn, $fund_id);
@@ -69,7 +68,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
             }
         }
 
-        die("Sono arrivato qui 5: Pre-validazione passata");
+        die("Sono arrivato qui 4: Pre-validazione passata");
 
         $sql_insert_tx = "INSERT INTO transactions (user_id, account_id, category_id, amount, type, description, transaction_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt_insert_tx = $conn->prepare($sql_insert_tx);
@@ -100,7 +99,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
         }
         $stmt_insert_tx->close();
 
-        die("Sono arrivato qui 6: Transazioni create");
+        die("Sono arrivato qui 5: Transazioni create");
 
         // --- 4. Archive the fund ---
         $sql_archive = "UPDATE shared_funds SET status = 'archived' WHERE id = ?";
