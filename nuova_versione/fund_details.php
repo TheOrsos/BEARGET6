@@ -177,64 +177,81 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                 $p2p_payments = array_filter($settlement_payments, function($p) {
                     return $p['from_user_id'] != $p['to_user_id'];
                 });
+                $all_accounts_selected = true;
+                foreach($p2p_payments as $p) {
+                    if (empty($p['from_account_id']) || empty($p['to_account_id'])) {
+                        $all_accounts_selected = false;
+                        break;
+                    }
+                }
             ?>
                 <div class="bg-gray-800 rounded-2xl p-6">
                     <h2 class="text-xl font-bold text-white mb-2">Saldaconto Automatico</h2>
-                    <p class="text-gray-400 mb-6">Seleziona i conti per registrare automaticamente le transazioni di debito/credito.</p>
+                    <p class="text-gray-400 mb-6">Ogni utente deve selezionare il proprio conto per il trasferimento. Una volta che tutti avranno scelto, il creatore potrà finalizzare.</p>
 
-                    <form action="process_automatic_settlement.php" method="POST">
-                        <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
-                        <div class="space-y-4">
-                            <?php if(empty($p2p_payments)): ?>
-                                <p class="text-center text-gray-500 py-4">Nessun debito da saldare tra i membri.</p>
-                            <?php else:
-                                $user_accounts_map = [];
-                                foreach ($members as $member) {
-                                    $user_accounts_map[$member['id']] = get_user_accounts($conn, $member['id']);
-                                }
-                            ?>
-                                <?php foreach($p2p_payments as $payment): ?>
-                                    <div class="bg-gray-700/50 p-4 rounded-lg">
-                                        <p class="text-white text-center mb-3">
-                                            <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
-                                            <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
-                                            <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
-                                        </p>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['from_username']); ?> (Uscita)</label>
-                                                <?php if ($user_id == $payment['from_user_id']): ?>
-                                                    <select name="payments[<?php echo $payment['id']; ?>][from_account]" required class="w-full bg-gray-900 text-white rounded-lg px-3 py-2">
-                                                        <?php foreach($user_accounts_map[$payment['from_user_id']] as $account): ?>
-                                                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                <?php else: ?>
-                                                    <p class="text-gray-400 text-sm italic mt-2">In attesa che <?php echo htmlspecialchars($payment['from_username']); ?> scelga il conto.</p>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['to_username']); ?> (Entrata)</label>
-                                                <?php if ($user_id == $payment['to_user_id']): ?>
-                                                    <select name="payments[<?php echo $payment['id']; ?>][to_account]" required class="w-full bg-gray-900 text-white rounded-lg px-3 py-2">
-                                                        <?php foreach($user_accounts_map[$payment['to_user_id']] as $account): ?>
-                                                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                <?php else: ?>
-                                                    <p class="text-gray-400 text-sm italic mt-2">In attesa che <?php echo htmlspecialchars($payment['to_username']); ?> scelga il conto.</p>
-                                                <?php endif; ?>
-                                            </div>
+                    <div id="settlement-container" class="space-y-4">
+                        <?php if(empty($p2p_payments)): ?>
+                            <p class="text-center text-gray-500 py-4">Nessun debito da saldare tra i membri.</p>
+                        <?php else:
+                            $user_accounts_map = [];
+                            foreach ($members as $member) {
+                                $user_accounts_map[$member['id']] = get_user_accounts($conn, $member['id']);
+                            }
+                        ?>
+                            <?php foreach($p2p_payments as $payment): ?>
+                                <div class="bg-gray-700/50 p-4 rounded-lg">
+                                    <p class="text-white text-center mb-3">
+                                        <span class="font-bold"><?php echo htmlspecialchars($payment['from_username']); ?></span> deve pagare
+                                        <span class="font-bold text-primary-400">€<?php echo number_format($payment['amount'], 2, ',', '.'); ?></span> a
+                                        <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
+                                    </p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <!-- From Account Selection -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['from_username']); ?> (Uscita)</label>
+                                            <?php if ($user_id == $payment['from_user_id'] && empty($payment['from_account_id'])): ?>
+                                                <select data-payment-id="<?php echo $payment['id']; ?>" data-type="from" class="account-select w-full bg-gray-900 text-white rounded-lg px-3 py-2">
+                                                    <option value="">Scegli un conto...</option>
+                                                    <?php foreach($user_accounts_map[$payment['from_user_id']] as $account): ?>
+                                                        <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            <?php else: ?>
+                                                <p class="text-gray-400 text-sm italic mt-2">
+                                                    <?php echo empty($payment['from_account_id']) ? 'In attesa di scelta...' : 'Conto selezionato.'; ?>
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
+                                        <!-- To Account Selection -->
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['to_username']); ?> (Entrata)</label>
+                                            <?php if ($user_id == $payment['to_user_id'] && empty($payment['to_account_id'])): ?>
+                                                <select data-payment-id="<?php echo $payment['id']; ?>" data-type="to" class="account-select w-full bg-gray-900 text-white rounded-lg px-3 py-2">
+                                                    <option value="">Scegli un conto...</option>
+                                                    <?php foreach($user_accounts_map[$payment['to_user_id']] as $account): ?>
+                                                        <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            <?php else: ?>
+                                                <p class="text-gray-400 text-sm italic mt-2">
+                                                    <?php echo empty($payment['to_account_id']) ? 'In attesa di scelta...' : 'Conto selezionato.'; ?>
+                                                </p>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
 
-                        <div class="mt-6 text-right">
-                             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg">Conferma e Crea Transazioni</button>
-                        </div>
-                    </form>
+                    <?php if ($is_creator && $all_accounts_selected && !empty($p2p_payments)): ?>
+                    <div class="mt-6 text-right">
+                        <form action="process_automatic_settlement.php" method="POST">
+                            <input type="hidden" name="fund_id" value="<?php echo $fund_id; ?>">
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg">Processa e Archivia Fondo</button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
                 </div>
             <?php else: // active or archived ?>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -641,6 +658,38 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
             return div.innerHTML;
         }
 
+        // AJAX for saving account choice
+        document.getElementById('settlement-container')?.addEventListener('change', function(e) {
+            if (e.target.classList.contains('account-select')) {
+                const select = e.target;
+                const paymentId = select.dataset.paymentId;
+                const accountId = select.value;
+                const type = select.dataset.type;
+
+                const formData = new FormData();
+                formData.append('payment_id', paymentId);
+                formData.append('account_id', accountId);
+                formData.append('type', type);
+
+                fetch('save_account_choice.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Visually confirm selection
+                        select.disabled = true;
+                        const parent = select.parentElement;
+                        parent.innerHTML = `<p class="text-green-400 text-sm italic mt-2">Conto selezionato.</p>`;
+                        // Optionally, check if all accounts are now selected and show the final button
+                    } else {
+                        alert('Errore: ' + data.message);
+                    }
+                })
+                .catch(err => alert('Errore di rete.'));
+            }
+        });
     </script>
 </body>
 </html>
