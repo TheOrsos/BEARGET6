@@ -43,7 +43,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
     $group_expenses = get_group_expenses($conn, $fund_id);
     $balances = get_group_balances($conn, $fund_id);
     $contributions = get_fund_contributions($conn, $fund_id);
-    $fundCategory = get_category_by_name($conn, 'Fondi Comuni', $user_id);
+    $fundCategory = get_category_by_name_and_type($conn, 'Fondi Comuni', $user_id, 'expense');
 }
 ?>
 <!DOCTYPE html>
