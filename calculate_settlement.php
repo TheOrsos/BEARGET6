@@ -116,9 +116,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
 
     } catch (Exception $e) {
         $conn->rollback();
-        header("location: fund_details.php?id=" . $fund_id . "&message=Errore: " . $e->getMessage() . "&type=error");
+        header("location: fund_details.php?id=" . $fund_id . "&message=Errore: " . urlencode($e->getMessage()) . "&type=error");
     } finally {
-        $conn->close();
+        if(isset($conn)) $conn->close();
     }
 } else {
     header("location: shared_funds.php");

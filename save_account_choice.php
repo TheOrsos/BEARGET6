@@ -68,8 +68,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_SESSION['id'])) {
         $conn->rollback();
         $response['message'] = $e->getMessage();
     } finally {
-        $conn->close();
+        if(isset($conn)) $conn->close();
     }
+} else {
+    $response['message'] = 'Utente non autenticato.';
 }
 
 echo json_encode($response);
