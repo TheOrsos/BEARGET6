@@ -1087,10 +1087,10 @@ function get_budget_by_id($conn, $budget_id, $user_id) {
 /**
  * Ottiene una categoria tramite il nome.
  */
-function get_category_by_name($conn, $name, $user_id) {
-    $sql = "SELECT * FROM categories WHERE name = ? AND user_id = ? AND type = 'expense' LIMIT 1";
+function get_category_by_name_and_type($conn, $name, $user_id, $type) {
+    $sql = "SELECT * FROM categories WHERE name = ? AND user_id = ? AND type = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("si", $name, $user_id);
+    $stmt->bind_param("sis", $name, $user_id, $type);
     $stmt->execute();
     $result = $stmt->get_result();
     $category = $result->fetch_assoc();

@@ -22,19 +22,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
 
         // --- 2. Get or Create a Category for Settlement Transactions ---
         $category_name = "Regolamento Fondo";
-        $category = get_category_by_name($conn, $category_name, $user_id);
-        if (!$category) {
+
+        // Expense Category
+        $expense_category = get_category_by_name_and_type($conn, $category_name, $user_id, 'expense');
+        if (!$expense_category) {
             $sql_create_cat = "INSERT INTO categories (user_id, name, type, icon) VALUES (?, ?, 'expense', '⚖️')";
             $stmt_create_cat = $conn->prepare($sql_create_cat);
             $stmt_create_cat->bind_param("is", $user_id, $category_name);
             $stmt_create_cat->execute();
-            $category_id = $stmt_create_cat->insert_id;
+            $expense_category_id = $stmt_create_cat->insert_id;
             $stmt_create_cat->close();
         } else {
-            $category_id = $category['id'];
+            $expense_category_id = $expense_category['id'];
         }
 
-        $income_category = get_category_by_name($conn, $category_name, $user_id);
+        // Income Category
+        $income_category = get_category_by_name_and_type($conn, $category_name, $user_id, 'income');
         if (!$income_category) {
             $sql_create_cat = "INSERT INTO categories (user_id, name, type, icon) VALUES (?, ?, 'income', '⚖️')";
             $stmt_create_cat = $conn->prepare($sql_create_cat);
@@ -74,7 +77,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['fund_id'])) {
             // Create Expense Transaction for Payer
             $expense_amount = -$amount;
             $expense_desc = "Pagamento a " . $payment['to_username'] . " per fondo '" . $fund['name'] . "'";
-            $stmt_insert_tx->bind_param("iiidsss", $from_user_id, $from_account_id, $category_id, $expense_amount, 'expense', $expense_desc, $today);
+            $stmt_insert_tx->bind_param("iiidsss", $from_user_id, $from_account_id, $expense_category_id, $expense_amount, 'expense', $expense_desc, $today);
             $stmt_insert_tx->execute();
 
             // Create Income Transaction for Payee
