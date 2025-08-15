@@ -1,6 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
 session_start();
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     header("location: index.php");
@@ -206,7 +204,6 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                                         <span class="font-bold"><?php echo htmlspecialchars($payment['to_username']); ?></span>
                                     </p>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <!-- From Account Selection -->
                                         <div>
                                             <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['from_username']); ?> (Uscita)</label>
                                             <?php if ($user_id == $payment['from_user_id'] && empty($payment['from_account_id'])): ?>
@@ -222,7 +219,6 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                                                 </p>
                                             <?php endif; ?>
                                         </div>
-                                        <!-- To Account Selection -->
                                         <div>
                                             <label class="block text-sm font-medium text-gray-300 mb-1">Conto di <?php echo htmlspecialchars($payment['to_username']); ?> (Entrata)</label>
                                             <?php if ($user_id == $payment['to_user_id'] && empty($payment['to_account_id'])): ?>
