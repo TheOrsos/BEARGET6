@@ -129,5 +129,6 @@
         });
     });
     </script>
+    <script src="sidebar-nav.js"></script>
 </body>
 </html>
