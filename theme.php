@@ -59,3 +59,47 @@ $current_palette = $palettes[$theme] ?? $palettes['dark-indigo'];
     --color-danger: #ef4444; /* Red */
     --color-warning: #f59e0b; /* Amber */
 }
+
+/* Stili per la sidebar compattata */
+#sidebar.sidebar-collapsed {
+    width: 5rem; /* 80px */
+}
+
+#sidebar.sidebar-collapsed .link-text,
+#sidebar.sidebar-collapsed .ml-3.text-2xl { /* Nasconde il testo "Bearget" */
+    display: none;
+}
+
+#sidebar.sidebar-collapsed .flex.items-center.mb-10 {
+    justify-content: center; /* Centra il logo */
+}
+
+#sidebar.sidebar-collapsed .sidebar-link svg,
+#sidebar.sidebar-collapsed .border-t a svg {
+    margin-right: 0;
+}
+
+#sidebar.sidebar-collapsed .sidebar-link,
+#sidebar.sidebar-collapsed .border-t a {
+    justify-content: center;
+}
+
+/* Transizioni */
+#sidebar {
+    transition: width 0.3s ease;
+}
+
+#sidebar-toggle-button svg {
+    transition: transform 0.3s ease;
+}
+
+#sidebar.sidebar-collapsed #sidebar-toggle-button svg {
+    transform: rotate(180deg);
+}
+
+/* Nasconde il pulsante su schermi piccoli */
+@media (max-width: 1023px) {
+    #sidebar-toggle-button {
+        display: none;
+    }
+}

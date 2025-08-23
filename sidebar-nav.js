@@ -1,10 +1,23 @@
 document.addEventListener('DOMContentLoaded', function() {
     const sidebarContainer = document.getElementById('sidebar');
     const mainContent = document.querySelector('main');
+    const toggleButton = document.getElementById('sidebar-toggle-button');
 
-    if (!sidebarContainer || !mainContent) {
+    if (!sidebarContainer || !mainContent || !toggleButton) {
         return;
     }
+
+    // Controlla lo stato iniziale dal localStorage
+    if (localStorage.getItem('sidebar_is_collapsed') === 'true') {
+        sidebarContainer.classList.add('sidebar-collapsed');
+        mainContent.classList.add('sidebar-collapsed');
+    }
+
+    toggleButton.addEventListener('click', () => {
+        const isCollapsed = sidebarContainer.classList.toggle('sidebar-collapsed');
+        mainContent.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('sidebar_is_collapsed', isCollapsed);
+    });
 
     function updateActiveLink(clickedLink) {
         // Rimuovi lo stato attivo da tutti i link nella sidebar
