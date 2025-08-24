@@ -9,13 +9,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Controlla lo stato iniziale dal localStorage
     if (localStorage.getItem('sidebar_is_collapsed') === 'true') {
-        sidebarContainer.classList.add('sidebar-collapsed');
-        mainContent.classList.add('sidebar-collapsed');
+        document.body.classList.add('sidebar-collapsed');
     }
 
     toggleButton.addEventListener('click', () => {
-        const isCollapsed = sidebarContainer.classList.toggle('sidebar-collapsed');
-        mainContent.classList.toggle('sidebar-collapsed');
+        const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
         localStorage.setItem('sidebar_is_collapsed', isCollapsed);
     });
 
