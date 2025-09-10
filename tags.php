@@ -75,9 +75,9 @@ $user_tags = get_user_tags($conn, $user_id);
                 </button>
             </header>
             
-            <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 10rem);">
-                <h2 class="text-xl font-bold  mb-4 flex-shrink-0">Le Tue Etichette</h2>
-                <div id="tags-list-container" class="space-y-3 flex-grow overflow-y-auto">
+            <div class="bg-gray-800 rounded-2xl p-6">
+                <h2 class="text-xl font-bold  mb-4">Le Tue Etichette</h2>
+                <div id="tags-list-container" class="space-y-3">
                     <?php if (empty($user_tags)): ?>
                         <div id="empty-state-tags" class="text-center py-10">
                             <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 013 8V3z"></path></svg>

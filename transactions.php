@@ -145,10 +145,10 @@ $current_page = 'transactions';
                 </form>
             </div>
 
-            <div class="bg-gray-800 rounded-2xl p-2 flex flex-col" style="height: calc(100vh - 12rem);">
-                <div class="overflow-auto">
+            <div class="bg-gray-800 rounded-2xl p-2">
+                <div class="overflow-x-auto">
                     <table class="w-full text-left">
-                        <thead class="text-sm text-gray-400 uppercase sticky top-0 bg-gray-800">
+                        <thead class="text-sm text-gray-400 uppercase">
                             <tr>
                                 <th class="p-4">Data</th>
                                 <th class="p-4">Descrizione</th>

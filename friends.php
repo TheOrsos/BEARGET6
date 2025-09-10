@@ -114,7 +114,7 @@ $current_page = 'friends';
                         </div>
                     </form>
 
-                    <div class="overflow-x-auto max-h-[80vh]">
+                    <div class="overflow-x-auto">
                         <table class="w-full text-left">
                             <thead>
                                 <tr class="border-b border-gray-700">

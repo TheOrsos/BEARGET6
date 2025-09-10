@@ -990,6 +990,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php include 'page_footer.php'; ?>
-<script src="admin_bulk_actions.js"></script>
+<script src="admin_filters.js"></script>
 </body>
 </html>

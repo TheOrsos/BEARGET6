@@ -72,7 +72,7 @@ function get_users_paginated_and_searched_ajax($conn, $filters) {
     $param_types_with_pagination = $param_types . "ii";
 
     $stmt = $conn->prepare($sql_users);
-    if (!empty($param_types_with_pagination)) {
+    if (!empty($params_with_pagination)) {
         $stmt->bind_param($param_types_with_pagination, ...$params_with_pagination);
     }
     $stmt->execute();

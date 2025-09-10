@@ -75,10 +75,10 @@ $expenseCategories = get_user_categories($conn, $user_id, 'expense');
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Colonna di input -->
-                <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 10rem);">
-                    <h2 class="text-xl font-bold  mb-4 flex-shrink-0">La tua lista dei desideri</h2>
-                    <div id="wishlist-items" class="space-y-3 mb-6 flex-grow overflow-y-auto"></div>
-                    <div class="border-t border-gray-700 pt-4 flex-shrink-0">
+                <div class="bg-gray-800 rounded-2xl p-6">
+                    <h2 class="text-xl font-bold  mb-4">La tua lista dei desideri</h2>
+                    <div id="wishlist-items" class="space-y-3 mb-6"></div>
+                    <div class="border-t border-gray-700 pt-4">
                         <button type="button" id="add-wish-btn" class="w-full bg-primary-600 hover:bg-primary-700  font-semibold py-2 px-4 rounded-lg transition-colors">+ Aggiungi Desiderio</button>
                     </div>
                     <div class="mt-8 border-t border-gray-700 pt-6">
@@ -90,12 +90,12 @@ $expenseCategories = get_user_categories($conn, $user_id, 'expense');
                 </div>
 
                 <!-- Colonna dei risultati -->
-                <div id="analysis-result-container" class="bg-gray-800 rounded-2xl p-6 hidden flex flex-col" style="height: calc(100vh - 10rem);">
-                     <div id="analysis-placeholder" class="text-center text-gray-500 flex flex-col justify-center items-center h-full flex-grow">
+                <div id="analysis-result-container" class="bg-gray-800 rounded-2xl p-6 hidden">
+                     <div id="analysis-placeholder" class="text-center text-gray-500 flex flex-col justify-center items-center h-full">
                         <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                         <p>I risultati della tua analisi appariranno qui.</p>
                     </div>
-                    <div id="result-wrapper" class="overflow-y-auto flex-grow"></div>
+                    <div id="result-wrapper"></div>
                 </div>
             </div>
         </main>

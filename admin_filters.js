@@ -1,31 +1,4 @@
-function sendAdminEmail(userId, emailType, params = {}) {
-    const endpoint = 'admin_send_email.php';
-    const body = {
-        user_id: userId,
-        email_type: emailType,
-        ...params
-    };
-    return fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Errore di rete o del server.');
-        }
-        return response.json();
-    })
-    .then(data => {
-        showToast(data.message, data.success ? 'success' : 'error');
-        if (!data.success) {
-            return Promise.reject(data);
-        }
-        return data;
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // --- Elementi per filtri ---
     const filterId = document.getElementById('filter-id');
     const filterSearch = document.getElementById('filter-search');
@@ -36,20 +9,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const userTableBody = document.getElementById('user-table-body');
     const paginationContainer = document.getElementById('pagination-container');
 
-    // --- Elementi per azioni di gruppo ---
-    const selectAllCheckbox = document.getElementById('select-all-users');
-    const bulkActionButtons = document.querySelectorAll('.bulk-action-btn');
-    const confirmModal = document.getElementById('bulk-action-confirm-modal');
-    const modalMessage = document.getElementById('bulk-action-modal-message');
-    const confirmButton = document.getElementById('bulk-action-confirm-button');
-
-    // Se gli elementi base dei filtri non esistono, la pagina non è quella giusta.
+    // Se gli elementi dei filtri non esistono, probabilmente non siamo nella pagina admin.php
     if (!filterId || !userTableBody || !paginationContainer) {
         return;
     }
 
     let currentPage = 1;
 
+    // --- Funzione di Debounce ---
     function debounce(func, delay) {
         let timeout;
         return function(...args) {
@@ -58,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    // --- Funzione per recuperare e aggiornare gli utenti ---
     function fetchUsers(page = 1) {
         currentPage = page;
         const id = filterId.value.trim();
@@ -66,10 +34,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const accStatus = filterAccountStatus.value;
         const emailStatus = filterReceivesEmails.value;
 
+        // Mostra un indicatore di caricamento
         userTableBody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">Caricamento...</td></tr>`;
 
         const params = new URLSearchParams({
-            page: currentPage, id, search,
+            page: currentPage,
+            id: id,
+            search: search,
             subscription_status: subStatus,
             account_status: accStatus,
             receives_emails: emailStatus,
@@ -85,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 userTableBody.innerHTML = data.table_body_html;
                 paginationContainer.innerHTML = data.pagination_html;
 
-                // Re-inizializza la logica per le checkbox dopo aver aggiornato la tabella
-                initializeBulkActionCheckboxes();
+                // **CRUCIALE**: Re-inizializza la logica per le azioni di gruppo dopo l'aggiornamento della tabella
+                initializeBulkActions();
             })
             .catch(error => {
                 console.error('Errore di rete:', error);
@@ -96,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const debouncedFetch = debounce(() => fetchUsers(1), 400);
 
+    // --- Event Listener per i filtri ---
     filterId.addEventListener('input', debouncedFetch);
     filterSearch.addEventListener('input', debouncedFetch);
     filterSubscriptionStatus.addEventListener('change', () => fetchUsers(1));
@@ -106,7 +78,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.matches('.pagination-link')) {
             e.preventDefault();
             const page = e.target.dataset.page;
-            if (page) fetchUsers(parseInt(page, 10));
+            if (page) {
+                fetchUsers(parseInt(page, 10));
+            }
         }
     });
 
@@ -119,23 +93,23 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchUsers(1);
     });
 
-    // --- Logica per Azioni di Gruppo ---
-    function initializeBulkActionCheckboxes() {
-        const currentSelectAll = document.getElementById('select-all-users');
-        const currentUserCheckboxes = document.querySelectorAll('.user-checkbox');
+    // --- Logica per Azioni di Gruppo (spostata da admin_bulk_actions.js) ---
+    function initializeBulkActions() {
+        const selectAllCheckbox = document.getElementById('select-all-users');
+        const userCheckboxes = document.querySelectorAll('.user-checkbox');
+        const bulkActionButtons = document.querySelectorAll('.bulk-action-btn');
+        const confirmModal = document.getElementById('bulk-action-confirm-modal');
+        const modalMessage = document.getElementById('bulk-action-modal-message');
+        const confirmButton = document.getElementById('bulk-action-confirm-button');
 
-        if (currentSelectAll) {
-            currentSelectAll.addEventListener('change', function() {
-                currentUserCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
+        if (!selectAllCheckbox) return;
+
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+                checkbox.checked = this.checked;
             });
-        }
-    }
+        });
 
-    initializeBulkActionCheckboxes(); // Chiamata iniziale
-
-    if (bulkActionButtons.length > 0) {
         bulkActionButtons.forEach(button => {
             button.addEventListener('click', function() {
                 const action = this.dataset.action;
@@ -169,30 +143,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 openModal('bulk-action-confirm-modal');
             });
         });
+
+        if (confirmButton) {
+            // Rimuovi vecchi listener per evitare duplicazioni
+            const newConfirmButton = confirmButton.cloneNode(true);
+            confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+
+            newConfirmButton.addEventListener('click', function() {
+                const action = this.dataset.action;
+                const userIds = JSON.parse(this.dataset.userIds);
+                fetch('admin_user_actions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ action: action, userIds: userIds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast(data.message, data.success ? 'success' : 'error');
+                    if (data.success) {
+                        // Aggiorna la vista invece di ricaricare la pagina
+                        fetchUsers(currentPage);
+                    }
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    showToast('Si è verificato un errore durante l\'esecuzione dell\'azione.', 'error');
+                })
+                .finally(() => closeModal('bulk-action-confirm-modal'));
+            });
+        }
     }
 
-    if (confirmButton) {
-        confirmButton.addEventListener('click', function() {
-            const action = this.dataset.action;
-            const userIds = JSON.parse(this.dataset.userIds);
-            fetch('admin_user_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ action: action, userIds: userIds })
-            })
-            .then(response => response.json())
-            .then(data => {
-                showToast(data.message, data.success ? 'success' : 'error');
-                if (data.success) {
-                    // Non ricaricare più la pagina, ma aggiorna la vista
-                    fetchUsers(currentPage);
-                }
-            })
-            .catch(error => {
-                console.error('Errore:', error);
-                showToast('Si è verificato un errore durante l\'esecuzione dell\'azione.', 'error');
-            })
-            .finally(() => closeModal('bulk-action-confirm-modal'));
-        });
-    }
+    // Chiamata iniziale per la logica delle azioni di gruppo
+    initializeBulkActions();
 });
