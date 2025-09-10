@@ -1,0 +1,8 @@
+{
+    "default": "Ciao! Sono la tua guida. Clicca su di me in qualsiasi pagina per ottenere aiuto contestuale.",
+    "dashboard.php": "Questa è la tua dashboard principale. Qui puoi vedere un riepilogo delle tue finanze, incluse le spese recenti, i budget e gli obiettivi.",
+    "transactions.php": "In questa pagina puoi visualizzare, aggiungere e modificare tutte le tue transazioni. Usa i filtri per trovare movimenti specifici.",
+    "budgets.php": "Usa questa sezione per creare e gestire i tuoi budget mensili. Tenere traccia dei budget ti aiuta a non spendere più di quanto pianificato.",
+    "goals.php": "Qui puoi impostare e monitorare i tuoi obiettivi di risparmio. Che si tratti di una vacanza o di un nuovo gadget, ti aiuterò a raggiungerlo!",
+    "settings.php": "In questa pagina puoi personalizzare le impostazioni del tuo account, come la password, le preferenze di notifica e il tema dell'applicazione."
+}
