@@ -61,9 +61,10 @@ $current_page = 'notifications';
                     </div>
                 </div>
             </header>
-            <div class="space-y-4 max-w-3xl mx-auto">
+            <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 10rem);">
+                <div class="space-y-4 max-w-3xl mx-auto w-full overflow-y-auto">
 <?php if (empty($notifications)): ?>
-    <div id="empty-state-notifications" class="bg-gray-800 rounded-lg p-6 text-center">
+    <div id="empty-state-notifications" class="bg-gray-900/50 rounded-lg p-6 text-center">
         <p class="text-gray-400">Nessuna nuova notifica al momento.</p>
     </div>
 <?php else: foreach ($notifications as $notification): ?>

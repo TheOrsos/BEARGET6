@@ -111,9 +111,10 @@ $current_page = 'notes';
                 </form>
             </div>
 
-            <div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <?php if (empty($notes)): ?>
-                    <div id="empty-state-notes" class="md:col-span-2 xl:col-span-4 text-center py-10">
+            <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 12rem);">
+                <div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto flex-grow">
+                    <?php if (empty($notes)): ?>
+                        <div id="empty-state-notes" class="md:col-span-2 xl:col-span-4 text-center py-10">
                         <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                         <h3 class="mt-2 text-sm font-medium ">Nessuna nota trovata</h3>
                         <p class="mt-1 text-sm text-gray-500">Crea la tua prima nota per iniziare.</p>
@@ -181,7 +182,7 @@ $current_page = 'notes';
                     </div>
                     <div class="flex flex-col">
                         <h3 class="text-lg font-semibold  mb-2">To-Do List</h3>
-                        <div class="flex-grow bg-gray-900 rounded-lg p-4 overflow-y-auto">
+                        <div class="flex-grow bg-gray-900 rounded-lg p-4 overflow-y-auto max-h-96">
                             <div id="todolist-container" class="space-y-2"></div>
                             <button type="button" id="add-item-btn" class="mt-4 text-sm text-primary-500 hover:text-primary-400 font-semibold">+ Aggiungi elemento</button>
                         </div>

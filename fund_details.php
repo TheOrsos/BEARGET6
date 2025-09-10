@@ -276,9 +276,9 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                         </div>
 
                         <!-- Expense List -->
-                         <div class="bg-gray-800 rounded-2xl p-6">
-                            <h2 class="text-xl font-bold  mb-4">Spese del Gruppo</h2>
-                            <div class="space-y-2">
+                         <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 24rem);">
+                            <h2 class="text-xl font-bold  mb-4 flex-shrink-0">Spese del Gruppo</h2>
+                            <div class="space-y-2 flex-grow overflow-y-auto">
                                 <?php if(empty($group_expenses)): ?>
                                     <div class="text-center py-8 text-gray-500">
                                         <p>Nessuna spesa registrata in questo gruppo.</p>
@@ -310,9 +310,9 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                             </div>
                         </div>
 
-                        <div class="bg-gray-800 rounded-2xl p-6">
-                            <h2 class="text-xl font-bold  mb-4">Storico Contributi</h2>
-                            <div id="contributions-list" class="space-y-2">
+                        <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 24rem);">
+                            <h2 class="text-xl font-bold  mb-4 flex-shrink-0">Storico Contributi</h2>
+                            <div id="contributions-list" class="space-y-2 flex-grow overflow-y-auto">
                                 <?php if(empty($contributions)): ?>
                                     <div id="empty-state-contributions" class="text-center py-8 text-gray-500">
                                         <p>Nessun contributo ancora versato.</p>
@@ -352,7 +352,7 @@ if ($fund['status'] === 'settling' || $fund['status'] === 'settling_auto') {
                         </div>
                     </div>
                     <!-- Colonna Laterale -->
-                    <div class="lg:col-span-1 space-y-6">
+                    <div class="lg:col-span-1 space-y-6 overflow-y-auto" style="height: calc(100vh - 10rem);">
                         <div class="bg-gray-800 rounded-2xl p-6">
                             <h2 class="text-xl font-bold  mb-4">Membri</h2>
                             <div class="space-y-3">
