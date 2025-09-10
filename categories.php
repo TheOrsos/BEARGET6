@@ -71,9 +71,9 @@ $current_page = 'categories';
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Categorie di Spesa -->
-                <div class="bg-gray-800 rounded-2xl p-6">
-                    <h2 class="text-xl font-bold  mb-4">Categorie di Spesa</h2>
-                    <div id="expense-list-container" class="space-y-3 mb-6">
+                <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 10rem);">
+                    <h2 class="text-xl font-bold  mb-4 flex-shrink-0">Categorie di Spesa</h2>
+                    <div id="expense-list-container" class="space-y-3 mb-6 overflow-y-auto flex-grow">
                         <?php foreach($expenseCategories as $cat): ?>
                             <div class="flex items-center justify-between bg-gray-700 p-3 rounded-lg category-item transition-shadow hover:shadow-lg" data-id="<?php echo $cat['id']; ?>">
                                 <div class="flex items-center">
@@ -105,9 +105,9 @@ $current_page = 'categories';
                 </div>
 
                 <!-- Categorie di Entrata -->
-                <div class="bg-gray-800 rounded-2xl p-6">
-                    <h2 class="text-xl font-bold  mb-4">Categorie di Entrata</h2>
-                    <div id="income-list-container" class="space-y-3 mb-6">
+                <div class="bg-gray-800 rounded-2xl p-6 flex flex-col" style="height: calc(100vh - 10rem);">
+                    <h2 class="text-xl font-bold  mb-4 flex-shrink-0">Categorie di Entrata</h2>
+                    <div id="income-list-container" class="space-y-3 mb-6 overflow-y-auto flex-grow">
                         <?php foreach($incomeCategories as $cat): ?>
                              <div class="flex items-center justify-between bg-gray-700 p-3 rounded-lg category-item transition-shadow hover:shadow-lg" data-id="<?php echo $cat['id']; ?>">
                                 <div class="flex items-center">

@@ -113,12 +113,53 @@ $current_page = 'admin'; // Per evidenziare il link nella sidebar
                 <div class="bg-gray-800 p-6 rounded-2xl"><h3 class="text-gray-400 text-sm font-medium">Nuovi (30 giorni)</h3><p class="text-3xl font-bold text-indigo-400 mt-1"><?php echo $stats['new_users_last_30_days']; ?></p></div>
             </div>
 
-            <div class="bg-gray-800 rounded-2xl p-4 mb-6">
-                <form action="admin.php" method="GET" class="flex items-center gap-4">
-                    <input type="text" name="search" value="<?php echo htmlspecialchars($search_term); ?>" placeholder="Cerca per username o email..." class="w-full bg-gray-700  rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
-                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 font-semibold py-2 px-4 rounded-lg">Cerca</button>
-                    <a href="admin.php" class="bg-gray-600 hover:bg-gray-500  font-semibold py-2 px-4 rounded-lg">Resetta</a>
-                </form>
+            <div class="bg-gray-800 rounded-2xl p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                    <!-- Filtro ID -->
+                    <div>
+                        <label for="filter-id" class="block text-sm font-medium text-gray-300 mb-1">ID Utente</label>
+                        <input type="number" id="filter-id" placeholder="Es: 123" class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    <!-- Filtro Search -->
+                    <div class="lg:col-span-2">
+                        <label for="filter-search" class="block text-sm font-medium text-gray-300 mb-1">Username o Email</label>
+                        <input type="text" id="filter-search" value="<?php echo htmlspecialchars($search_term); ?>" placeholder="Cerca..." class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    <!-- Filtro Abbonamento -->
+                    <div>
+                        <label for="filter-subscription-status" class="block text-sm font-medium text-gray-300 mb-1">Abbonamento</label>
+                        <select id="filter-subscription-status" class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Tutti</option>
+                            <option value="active">Active</option>
+                            <option value="free">Free</option>
+                            <option value="lifetime">Lifetime</option>
+                            <option value="pending_cancellation">In disdetta</option>
+                            <option value="canceled">Cancellato</option>
+                            <option value="past_due">Scaduto</option>
+                        </select>
+                    </div>
+                    <!-- Filtro Stato Account -->
+                    <div>
+                        <label for="filter-account-status" class="block text-sm font-medium text-gray-300 mb-1">Stato Account</label>
+                        <select id="filter-account-status" class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Tutti</option>
+                            <option value="active">Attivo</option>
+                            <option value="suspended">Sospeso</option>
+                        </select>
+                    </div>
+                    <!-- Filtro Stato Email -->
+                    <div>
+                        <label for="filter-receives-emails" class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                        <select id="filter-receives-emails" class="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Tutti</option>
+                            <option value="1">Riceve</option>
+                            <option value="0">Non riceve</option>
+                        </select>
+                    </div>
+                </div>
+                 <div class="flex justify-end mt-4">
+                    <button id="reset-filters-btn" class="bg-gray-600 hover:bg-gray-500 font-semibold py-2 px-4 rounded-lg text-sm">Resetta Filtri</button>
+                </div>
             </div>
 
             <!-- Sezione Modalità Manutenzione -->
@@ -215,7 +256,7 @@ $current_page = 'admin'; // Per evidenziare il link nella sidebar
                                 <th class="p-4 text-left">Azioni</th>
                             </tr>
                         </thead>
-                        <tbody class="">
+                        <tbody id="user-table-body">
                             <?php if (empty($users_list)): ?>
                                 <tr><td colspan="8" class="text-center p-6 text-gray-400">Nessun utente trovato.</td></tr>
                             <?php else: ?>
@@ -270,14 +311,14 @@ $current_page = 'admin'; // Per evidenziare il link nella sidebar
                 </div>
             </div>
 
-            <div class="flex justify-between items-center mt-6">
+            <div id="pagination-container" class="flex justify-between items-center mt-6">
                 <span class="text-sm text-gray-400">Pagina <?php echo $current_page_number; ?> di <?php echo $total_pages > 0 ? $total_pages : 1; ?></span>
                 <div class="flex gap-2">
                     <?php if ($current_page_number > 1): ?>
-                        <a href="?page=<?php echo $current_page_number - 1; ?>&search=<?php echo urlencode($search_term); ?>" class="bg-gray-700 hover:bg-gray-600  font-semibold py-2 px-4 rounded-lg">&laquo; Precedente</a>
+                        <a href="?page=<?php echo $current_page_number - 1; ?>&search=<?php echo urlencode($search_term); ?>" class="pagination-link bg-gray-700 hover:bg-gray-600  font-semibold py-2 px-4 rounded-lg">&laquo; Precedente</a>
                     <?php endif; ?>
                     <?php if ($current_page_number < $total_pages): ?>
-                        <a href="?page=<?php echo $current_page_number + 1; ?>&search=<?php echo urlencode($search_term); ?>" class="bg-gray-700 hover:bg-gray-600  font-semibold py-2 px-4 rounded-lg">Successivo &raquo;</a>
+                        <a href="?page=<?php echo $current_page_number + 1; ?>&search=<?php echo urlencode($search_term); ?>" class="pagination-link bg-gray-700 hover:bg-gray-600  font-semibold py-2 px-4 rounded-lg">Successivo &raquo;</a>
                     <?php endif; ?>
                 </div>
             </div>
