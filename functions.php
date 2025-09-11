@@ -1724,7 +1724,7 @@ function get_friend_debt_summary($conn, $user_id) {
                 UNION
                 SELECT f.user_id_1 FROM friendships f WHERE f.user_id_2 = ? AND f.status = 'accepted'
             )
-            HAVING net_balance < 0";
+            HAVING net_balance > 0";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("iiii", $user_id, $user_id, $user_id, $user_id);
