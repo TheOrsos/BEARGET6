@@ -40,14 +40,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("ssddddii", $name, $type, $initial_amount, $current_balance, $interest_rate, $minimum_payment, $liability_id, $user_id);
 
-        if ($stmt->execute()) {
+        $success = $stmt->execute();
+        $stmt->close(); // Close statement right after execution
+
+        if ($success) {
             header("location: debts.php?success=" . urlencode("Debito aggiornato con successo!"));
-            exit;
         } else {
             header("location: debts.php?error=" . urlencode("Oops! Qualcosa è andato storto. Riprova più tardi."));
-            exit;
         }
-        $stmt->close();
+        exit;
     }
 }
 
