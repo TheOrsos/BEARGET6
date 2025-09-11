@@ -10,6 +10,8 @@ require_once 'auth_check.php';
 
 $user_id = $_SESSION["id"];
 $debts = get_all_user_debts($conn, $user_id);
+$accounts = get_user_accounts($conn, $user_id); // Get user accounts for payment modal
+$expense_categories = get_user_categories($conn, $user_id, 'expense'); // Get expense categories for automation modal
 
 $total_debt = 0;
 foreach ($debts as $debt) {
@@ -98,7 +100,22 @@ $current_page = 'debts';
                             <?php else: ?>
                                 <?php foreach ($debts as $debt): ?>
                                 <tr class="border-b border-gray-700 last:border-b-0">
-                                    <td class="p-4 font-semibold"><?php echo htmlspecialchars($debt['name']); ?></td>
+                                    <td class="p-4">
+                                        <div class="font-semibold"><?php echo htmlspecialchars($debt['name']); ?></div>
+                                        <?php
+                                        $paid_amount = $debt['initial_amount'] - $debt['current_balance'];
+                                        $percentage = ($debt['initial_amount'] > 0) ? ($paid_amount / $debt['initial_amount']) * 100 : 0;
+                                        ?>
+                                        <div class="mt-2">
+                                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                                <div class="bg-blue-500 h-2 rounded-full" style="width: <?php echo min($percentage, 100); ?>%"></div>
+                                            </div>
+                                            <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                                <span>€<?php echo number_format($paid_amount, 2, ',', '.'); ?></span>
+                                                <span>€<?php echo number_format($debt['initial_amount'], 2, ',', '.'); ?></span>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td class="p-4">
                                         <?php if ($debt['type'] === 'friend_loan'): ?>
                                             <span class="px-2 py-1 font-semibold leading-tight text-xs rounded-full bg-blue-700 text-blue-100">Prestito da Amico</span>
@@ -106,13 +123,21 @@ $current_page = 'debts';
                                             <span class="px-2 py-1 font-semibold leading-tight text-xs rounded-full bg-purple-700 text-purple-100"><?php echo htmlspecialchars(ucfirst($debt['type'])); ?></span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="p-4 text-right font-mono">€ <?php echo number_format($debt['current_balance'], 2, ',', '.'); ?></td>
+                                    <td class="p-4 text-right font-mono text-lg">€ <?php echo number_format($debt['current_balance'], 2, ',', '.'); ?></td>
                                     <td class="p-4 text-right font-mono"><?php echo number_format($debt['interest_rate'], 2, ',', '.'); ?> %</td>
                                     <td class="p-4 text-right font-mono">€ <?php echo number_format($debt['minimum_payment'], 2, ',', '.'); ?></td>
                                     <td class="p-4 text-center">
                                         <?php if ($debt['type'] !== 'friend_loan'): ?>
-                                            <button onclick='openEditModal(<?php echo json_encode($debt); ?>)' class="p-2 hover:bg-gray-700 rounded-full" title="Modifica Debito"><svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg></button>
-                                            <button onclick='openDeleteModal(<?php echo $debt['id']; ?>)' class="p-2 hover:bg-gray-700 rounded-full" title="Elimina Debito"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                            <div class="flex flex-col items-center space-y-2">
+                                                <button onclick='openPayModal(<?php echo json_encode($debt); ?>)' class="p-2 bg-green-600 hover:bg-green-500 rounded-full" title="Effettua Pagamento"><svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" /><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" /></svg></button>
+                                                <?php if ($debt['minimum_payment'] > 0): ?>
+                                                    <button onclick='openAutomateModal(<?php echo json_encode($debt); ?>)' class="p-2 bg-blue-600 hover:bg-blue-500 rounded-full" title="Automatizza Pagamento Ricorrente"><svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg></button>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="flex items-center justify-center mt-2">
+                                                <button onclick='openEditModal(<?php echo json_encode($debt); ?>)' class="p-2 hover:bg-gray-700 rounded-full" title="Modifica Debito"><svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg></button>
+                                                <button onclick='openDeleteModal(<?php echo $debt['id']; ?>)' class="p-2 hover:bg-gray-700 rounded-full" title="Elimina Debito"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                            </div>
                                         <?php else: ?>
                                             <span class="text-xs text-gray-500">Gestito in Amici</span>
                                         <?php endif; ?>
@@ -283,7 +308,100 @@ $current_page = 'debts';
         document.getElementById('delete-liability-id').value = liabilityId;
         openModal('delete-liability-modal');
     }
+
+    function openPayModal(debt) {
+        document.getElementById('pay-liability-id').value = debt.id;
+        document.getElementById('pay-debt-name').textContent = debt.name;
+        const amountInput = document.getElementById('pay-amount');
+        amountInput.value = debt.current_balance;
+        amountInput.max = debt.current_balance;
+        openModal('pay-liability-modal');
+    }
+
+    function openAutomateModal(debt) {
+        document.getElementById('automate-liability-id').value = debt.id;
+        document.getElementById('automate-debt-name').textContent = debt.name;
+        document.getElementById('automate-amount').value = debt.minimum_payment;
+        document.getElementById('automate-description').value = "Rata per: " + debt.name;
+        openModal('automate-payment-modal');
+    }
     </script>
+
+    <!-- Automate Payment Modal -->
+    <div id="automate-payment-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="fixed inset-0 bg-black bg-opacity-60 modal-backdrop" onclick="closeModal('automate-payment-modal')"></div>
+        <div class="bg-gray-800 rounded-2xl w-full max-w-lg p-6 shadow-lg transform scale-95 opacity-0 modal-content">
+            <h2 class="text-2xl font-bold text-white mb-2">Automatizza Pagamento</h2>
+            <p class="text-gray-400 mb-6">Crea una spesa ricorrente per: <strong id="automate-debt-name" class="text-primary-400"></strong></p>
+            <form action="automate_liability_payment.php" method="POST" class="space-y-4">
+                <input type="hidden" name="liability_id" id="automate-liability-id">
+                <input type="hidden" name="amount" id="automate-amount">
+                <input type="hidden" name="description" id="automate-description">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Importo Rata</label>
+                    <p class="text-lg font-bold">€ <span id="automate-amount-display"></span></p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="automate-account-id" class="block text-sm font-medium text-gray-300 mb-1">Conto di Addebito</label>
+                        <select name="account_id" id="automate-account-id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                            <?php foreach($accounts as $account): ?>
+                                <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="automate-category-id" class="block text-sm font-medium text-gray-300 mb-1">Categoria Spesa</label>
+                        <select name="category_id" id="automate-category-id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                            <?php foreach($expense_categories as $category): ?>
+                                <option value="<?php echo $category['id']; ?>"><?php echo htmlspecialchars($category['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="start_date" class="block text-sm font-medium text-gray-300 mb-1">Data del Prossimo Pagamento</label>
+                    <input type="date" name="start_date" id="start_date" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                </div>
+
+                <div class="pt-4 flex justify-end space-x-4">
+                    <button type="button" onclick="closeModal('automate-payment-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-5 rounded-lg">Annulla</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg">Crea Spesa Ricorrente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pay Liability Modal -->
+    <div id="pay-liability-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="fixed inset-0 bg-black bg-opacity-60 modal-backdrop" onclick="closeModal('pay-liability-modal')"></div>
+        <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-lg transform scale-95 opacity-0 modal-content">
+            <h2 class="text-2xl font-bold text-white mb-2">Effettua Pagamento</h2>
+            <p class="text-gray-400 mb-6">Paga il tuo debito: <strong id="pay-debt-name" class="text-primary-400"></strong></p>
+            <form action="pay_liability.php" method="POST" class="space-y-4">
+                <input type="hidden" name="liability_id" id="pay-liability-id">
+                <div>
+                    <label for="pay-amount" class="block text-sm font-medium text-gray-300 mb-1">Importo da Pagare (€)</label>
+                    <input type="number" name="amount" id="pay-amount" required step="0.01" min="0.01" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label for="pay-account-id" class="block text-sm font-medium text-gray-300 mb-1">Usa fondi dal conto</label>
+                    <select name="account_id" id="pay-account-id" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                        <?php foreach($accounts as $account): ?>
+                            <option value="<?php echo $account['id']; ?>"><?php echo htmlspecialchars($account['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="pt-4 flex justify-end space-x-4">
+                    <button type="button" onclick="closeModal('pay-liability-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-5 rounded-lg">Annulla</button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg">Paga Ora</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <?php include 'page_footer.php'; ?>
 </body>
 </html>
