@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $description = "Pagamento per: " . $liability_name;
 
-        $stmt_insert_tx->bind_param("iidss", $user_id, $account_id, $negative_amount, $description);
+        $stmt_insert_tx->bind_param("iids", $user_id, $account_id, $negative_amount, $description);
         $stmt_insert_tx->execute();
         $stmt_insert_tx->close();
 
