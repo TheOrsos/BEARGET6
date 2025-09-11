@@ -1752,7 +1752,7 @@ function get_friend_debt_summary($conn, $user_id) {
 function get_all_user_debts($conn, $user_id) {
     // 1. Ottieni i debiti manuali
     $manual_debts = [];
-    $sql_manual = "SELECT * FROM liabilities WHERE user_id = ? ORDER BY name ASC";
+    $sql_manual = "SELECT *, recurring_transaction_id FROM liabilities WHERE user_id = ? ORDER BY name ASC";
     $stmt_manual = $conn->prepare($sql_manual);
     $stmt_manual->bind_param("i", $user_id);
     $stmt_manual->execute();

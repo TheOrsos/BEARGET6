@@ -39,23 +39,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    // --- Create Recurring Transaction ---
-    $sql = "INSERT INTO recurring_transactions (user_id, account_id, category_id, amount, type, frequency, description, next_due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    // --- Create Recurring Transaction and Link to Liability ---
+    $conn->begin_transaction();
+    try {
+        // 1. Create the recurring transaction
+        $sql_insert = "INSERT INTO recurring_transactions (user_id, account_id, category_id, amount, type, frequency, description, next_due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt_insert = $conn->prepare($sql_insert);
+        $stmt_insert->bind_param("iiidssss", $user_id, $account_id, $category_id, $amount, $type, $frequency, $description, $start_date);
 
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("iiidssss", $user_id, $account_id, $category_id, $amount, $type, $frequency, $description, $start_date);
-
-        if ($stmt->execute()) {
-            $stmt->close();
-            header("location: recurring.php?success=" . urlencode("Pagamento ricorrente creato con successo! Lo vedrai nella lista delle spese ricorrenti."));
-            exit;
-        } else {
-            $stmt->close();
-            header("location: debts.php?error=" . urlencode("Oops! Qualcosa è andato storto nella creazione della spesa ricorrente."));
-            exit;
+        if (!$stmt_insert->execute()) {
+            throw new Exception("Creazione della spesa ricorrente fallita.");
         }
-    } else {
-        header("location: debts.php?error=" . urlencode("Errore di preparazione della richiesta al database."));
+
+        $recurring_transaction_id = $stmt_insert->insert_id;
+        $stmt_insert->close();
+
+        // 2. Link it to the liability
+        $sql_update = "UPDATE liabilities SET recurring_transaction_id = ? WHERE id = ? AND user_id = ?";
+        $stmt_update = $conn->prepare($sql_update);
+        $stmt_update->bind_param("iii", $recurring_transaction_id, $liability_id, $user_id);
+
+        if (!$stmt_update->execute()) {
+            throw new Exception("Collegamento del debito alla spesa ricorrente fallito.");
+        }
+        $stmt_update->close();
+
+        // 3. Commit
+        $conn->commit();
+
+        header("location: recurring.php?success=" . urlencode("Pagamento ricorrente creato con successo!") . "&highlight_id=" . $recurring_transaction_id);
+        exit;
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Errore automazione debito: " . $e->getMessage());
+        header("location: debts.php?error=" . urlencode("Oops! Qualcosa è andato storto durante l'automazione."));
         exit;
     }
 }

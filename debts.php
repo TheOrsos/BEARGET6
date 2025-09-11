@@ -130,7 +130,11 @@ $current_page = 'debts';
                                         <?php if ($debt['type'] !== 'friend_loan'): ?>
                                             <div class="flex flex-col items-center space-y-2">
                                                 <button onclick='openPayModal(<?php echo json_encode($debt); ?>)' class="p-2 bg-green-600 hover:bg-green-500 rounded-full" title="Effettua Pagamento"><svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" /><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" /></svg></button>
-                                                <?php if ($debt['minimum_payment'] > 0): ?>
+                                                <?php if (isset($debt['recurring_transaction_id']) && $debt['recurring_transaction_id']): ?>
+                                                    <a href="recurring.php?highlight_id=<?php echo $debt['recurring_transaction_id']; ?>" class="p-2 bg-gray-600 hover:bg-gray-500 rounded-full" title="Visualizza Pagamento Ricorrente">
+                                                        <svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm15 1a1 1 0 10-2 0v2a1 1 0 102 0v-2zM3 16a1 1 0 011-1h9a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                                                    </a>
+                                                <?php elseif ($debt['minimum_payment'] > 0): ?>
                                                     <button onclick='openAutomateModal(<?php echo json_encode($debt); ?>)' class="p-2 bg-blue-600 hover:bg-blue-500 rounded-full" title="Automatizza Pagamento Ricorrente"><svg class="w-5 h-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg></button>
                                                 <?php endif; ?>
                                             </div>
@@ -312,8 +316,10 @@ $current_page = 'debts';
     function openPayModal(debt) {
         document.getElementById('pay-liability-id').value = debt.id;
         document.getElementById('pay-debt-name').textContent = debt.name;
+        document.getElementById('pay-remaining-balance').textContent = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(debt.current_balance);
         const amountInput = document.getElementById('pay-amount');
-        amountInput.value = debt.current_balance;
+        amountInput.value = ''; // Clear the input field
+        amountInput.placeholder = '0.00';
         amountInput.max = debt.current_balance;
         openModal('pay-liability-modal');
     }
@@ -322,6 +328,8 @@ $current_page = 'debts';
         document.getElementById('automate-liability-id').value = debt.id;
         document.getElementById('automate-debt-name').textContent = debt.name;
         document.getElementById('automate-amount').value = debt.minimum_payment;
+        // Also update the display span
+        document.getElementById('automate-amount-display').textContent = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(debt.minimum_payment);
         document.getElementById('automate-description').value = "Rata per: " + debt.name;
         openModal('automate-payment-modal');
     }
@@ -340,7 +348,7 @@ $current_page = 'debts';
 
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-1">Importo Rata</label>
-                    <p class="text-lg font-bold">€ <span id="automate-amount-display"></span></p>
+                    <p id="automate-amount-display" class="text-lg font-bold"></p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -380,12 +388,18 @@ $current_page = 'debts';
         <div class="fixed inset-0 bg-black bg-opacity-60 modal-backdrop" onclick="closeModal('pay-liability-modal')"></div>
         <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-lg transform scale-95 opacity-0 modal-content">
             <h2 class="text-2xl font-bold text-white mb-2">Effettua Pagamento</h2>
-            <p class="text-gray-400 mb-6">Paga il tuo debito: <strong id="pay-debt-name" class="text-primary-400"></strong></p>
+            <p class="text-gray-400 mb-4">Paga il tuo debito: <strong id="pay-debt-name" class="text-primary-400"></strong></p>
+
+            <div class="bg-gray-700 p-3 rounded-lg mb-4">
+                <span class="text-sm text-gray-400">Saldo Residuo:</span>
+                <span id="pay-remaining-balance" class="text-lg font-bold text-white"></span>
+            </div>
+
             <form action="pay_liability.php" method="POST" class="space-y-4">
                 <input type="hidden" name="liability_id" id="pay-liability-id">
                 <div>
                     <label for="pay-amount" class="block text-sm font-medium text-gray-300 mb-1">Importo da Pagare (€)</label>
-                    <input type="number" name="amount" id="pay-amount" required step="0.01" min="0.01" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2">
+                    <input type="number" name="amount" id="pay-amount" required step="0.01" min="0.01" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2" placeholder="0.00">
                 </div>
                 <div>
                     <label for="pay-account-id" class="block text-sm font-medium text-gray-300 mb-1">Usa fondi dal conto</label>

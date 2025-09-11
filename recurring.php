@@ -8,6 +8,8 @@ require_once 'db_connect.php';
 require_once 'functions.php';
 require_once 'auth_check.php';
 
+$highlight_id = isset($_GET['highlight_id']) ? (int)$_GET['highlight_id'] : null;
+
 $user_id = $_SESSION["id"];
 $current_page = 'recurring';
 
@@ -99,7 +101,7 @@ $incomeCategories = get_user_categories($conn, $user_id, 'income');
                                 </td></tr>
                             <?php else: ?>
                                 <?php foreach ($recurring_transactions as $tx): ?>
-                                <tr class="border-b border-gray-700 last:border-b-0 transition-colors hover:bg-gray-700/50" data-recurring-id="<?php echo $tx['id']; ?>">
+                                <tr class="border-b border-gray-700 last:border-b-0 transition-colors hover:bg-gray-700/50 <?php if ($highlight_id === $tx['id']) echo 'bg-blue-900/50'; ?>" data-recurring-id="<?php echo $tx['id']; ?>">
                                     <td class="p-4 font-semibold description-cell"><?php echo htmlspecialchars($tx['description']); ?></td>
                                     <td class="p-4 date-cell"><?php echo date("d/m/Y", strtotime($tx['next_due_date'])); ?></td>
                                     <td class="p-4 capitalize frequency-cell"><?php echo htmlspecialchars($tx['frequency']); ?></td>
