@@ -10,8 +10,11 @@ require_once 'friends_functions.php';
 require_once 'auth_check.php';
 
 $user_id = $_SESSION["id"];
+$search_query = trim($_GET['search_query'] ?? '');
+$filter = trim($_GET['filter'] ?? '');
+
 $user = get_user_by_id($conn, $user_id);
-$friends = get_friends_for_user($conn, $user_id);
+$friends = get_friends_for_user($conn, $user_id, $search_query, $filter);
 $blocked_user_ids = get_blocked_user_ids($conn, $user_id);
 $accounts = get_user_accounts($conn, $user_id); // For the transfer modal
 $unread_counts = get_unread_message_counts($conn, $user_id);
