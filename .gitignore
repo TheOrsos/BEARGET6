@@ -1,0 +1,12 @@
+# Composer dependencies
+vendor/
+
+# Composer executable
+composer.phar
+composer-setup.php
+
+# Log files
+*.log
+
+# Environment variables
+.env

@@ -1687,6 +1687,89 @@ function get_net_worth_trend($conn, $user_id, $filters = []) {
 }
 
 // =============================================================================
+// FUNZIONI DEBITI (LIABILITIES)
+// =============================================================================
+
+/**
+ * Controlla se un debito appartiene a un utente.
+ * @param object $conn La connessione al database.
+ * @param int $user_id L'ID dell'utente.
+ * @param int $liability_id L'ID del debito.
+ * @return bool True se il debito appartiene all'utente, altrimenti false.
+ */
+function user_owns_liability($conn, $user_id, $liability_id) {
+    $sql = "SELECT id FROM liabilities WHERE id = ? AND user_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ii", $liability_id, $user_id);
+    $stmt->execute();
+    $stmt->store_result();
+    $is_owner = $stmt->num_rows > 0;
+    $stmt->close();
+    return $is_owner;
+}
+
+/**
+ * Ottiene un riepilogo dei debiti che un utente ha verso i suoi amici.
+ */
+function get_friend_debt_summary($conn, $user_id) {
+    $debts = [];
+    $sql = "SELECT
+                u.id as friend_id,
+                u.username as friend_name,
+                (SELECT IFNULL(SUM(lr.amount), 0) FROM loan_requests lr WHERE lr.requester_id = ? AND lr.lender_id = u.id AND lr.status = 'accepted') -
+                (SELECT IFNULL(SUM(lr.amount), 0) FROM loan_requests lr WHERE lr.lender_id = ? AND lr.requester_id = u.id AND lr.status = 'accepted') AS net_balance
+            FROM users u
+            WHERE u.id IN (
+                SELECT f.user_id_2 FROM friendships f WHERE f.user_id_1 = ? AND f.status = 'accepted'
+                UNION
+                SELECT f.user_id_1 FROM friendships f WHERE f.user_id_2 = ? AND f.status = 'accepted'
+            )
+            HAVING net_balance > 0";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("iiii", $user_id, $user_id, $user_id, $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $debts[] = [
+            'id' => 'friend_' . $row['friend_id'],
+            'name' => 'Debito verso ' . htmlspecialchars($row['friend_name']),
+            'type' => 'friend_loan',
+            'current_balance' => abs($row['net_balance']),
+            'interest_rate' => 0, // I prestiti tra amici non hanno interessi in questo sistema
+            'minimum_payment' => 0,
+            'initial_amount' => abs($row['net_balance']), // Potremmo non avere l'importo iniziale, usiamo il saldo
+            'created_at' => null // Non abbiamo una data di creazione specifica per il debito aggregato
+        ];
+    }
+    $stmt->close();
+    return $debts;
+}
+
+/**
+ * Ottiene tutti i debiti di un utente (manuali e verso amici).
+ */
+function get_all_user_debts($conn, $user_id) {
+    // 1. Ottieni i debiti manuali
+    $manual_debts = [];
+    $sql_manual = "SELECT *, recurring_transaction_id FROM liabilities WHERE user_id = ? ORDER BY name ASC";
+    $stmt_manual = $conn->prepare($sql_manual);
+    $stmt_manual->bind_param("i", $user_id);
+    $stmt_manual->execute();
+    $result_manual = $stmt_manual->get_result();
+    while ($row = $result_manual->fetch_assoc()) {
+        $manual_debts[] = $row;
+    }
+    $stmt_manual->close();
+
+    // 2. Ottieni i debiti verso gli amici
+    $friend_debts = get_friend_debt_summary($conn, $user_id);
+
+    // 3. Unisci i due array
+    return array_merge($manual_debts, $friend_debts);
+}
+
+// =============================================================================
 // FUNZIONI DI SALDACONTO (SETTLEMENT)
 // =============================================================================
 
