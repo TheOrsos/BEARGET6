@@ -1735,11 +1735,13 @@ function get_friend_debt_summary($conn, $user_id) {
             'id' => 'friend_' . $row['friend_id'],
             'name' => 'Debito verso ' . htmlspecialchars($row['friend_name']),
             'type' => 'friend_loan',
+            'friend_name' => htmlspecialchars($row['friend_name']), // Added for the link
             'current_balance' => abs($row['net_balance']),
             'interest_rate' => 0, // I prestiti tra amici non hanno interessi in questo sistema
             'minimum_payment' => 0,
             'initial_amount' => abs($row['net_balance']), // Potremmo non avere l'importo iniziale, usiamo il saldo
-            'created_at' => null // Non abbiamo una data di creazione specifica per il debito aggregato
+            'created_at' => null, // Non abbiamo una data di creazione specifica per il debito aggregato
+            'recurring_transaction_id' => null // Friend loans cannot be automated from here
         ];
     }
     $stmt->close();
