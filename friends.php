@@ -11,10 +11,11 @@ require_once 'auth_check.php';
 
 $user_id = $_SESSION["id"];
 $search_query = trim($_GET['search_query'] ?? '');
+$friend_code_query = trim($_GET['friend_code_query'] ?? '');
 $filter = trim($_GET['filter'] ?? '');
 
 $user = get_user_by_id($conn, $user_id);
-$friends = get_friends_for_user($conn, $user_id, $search_query, $filter);
+$friends = get_friends_for_user($conn, $user_id, $search_query, $filter, $friend_code_query);
 $blocked_user_ids = get_blocked_user_ids($conn, $user_id);
 $accounts = get_user_accounts($conn, $user_id); // For the transfer modal
 $unread_counts = get_unread_message_counts($conn, $user_id);
@@ -99,21 +100,29 @@ $current_page = 'friends';
                     <h2 class="text-xl font-bold mb-4">Lista Amici</h2>
 
                     <!-- Search and Filter Form -->
-                    <form method="GET" action="friends.php" class="mb-6">
+                    <form method="GET" action="friends.php" class="mb-6 space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label for="search_query" class="sr-only">Cerca amici</label>
-                                <input type="text" name="search_query" id="search_query" placeholder="Cerca per nome o email..." value="<?php echo htmlspecialchars($search_query ?? ''); ?>" class="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <label for="search_query" class="text-sm font-medium text-gray-400">Cerca per Nome/Email</label>
+                                <input type="text" name="search_query" id="search_query" placeholder="Nome o email..." value="<?php echo htmlspecialchars($search_query ?? ''); ?>" class="mt-1 w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
                             </div>
-                            <div class="flex items-center gap-2">
-                                <select name="filter" class="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <div>
+                                <label for="friend_code_query" class="text-sm font-medium text-gray-400">Cerca per Codice Amico</label>
+                                <input type="text" name="friend_code_query" id="friend_code_query" placeholder="Codice amico..." value="<?php echo htmlspecialchars($friend_code_query ?? ''); ?>" class="mt-1 w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            </div>
+                        </div>
+                        <div class="flex items-end gap-4">
+                            <div class="flex-grow">
+                                <label for="filter" class="text-sm font-medium text-gray-400">Filtra per stato</label>
+                                <select name="filter" id="filter" class="mt-1 w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
                                     <option value="">Nessun filtro</option>
                                     <option value="blocked" <?php if (($filter ?? '') == 'blocked') echo 'selected'; ?>>Bloccati</option>
                                     <option value="debts" <?php if (($filter ?? '') == 'debts') echo 'selected'; ?>>Ho un debito</option>
                                     <option value="loans" <?php if (($filter ?? '') == 'loans') echo 'selected'; ?>>Ho un prestito</option>
                                 </select>
-                                <a href="friends.php" class="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Reset</a>
                             </div>
+                            <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-lg">Cerca</button>
+                            <a href="friends.php" class="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Reset</a>
                         </div>
                     </form>
 
